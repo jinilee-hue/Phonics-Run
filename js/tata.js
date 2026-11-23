@@ -69,12 +69,21 @@ function headDecal(shape, mat, lift = 0.004, segs = 24) {
   g.computeVertexNormals();
   return new THREE.Mesh(g, mat);
 }
-function headTube(pts2, r, mat, lift) {
+function headTube(pts2, r, mat, lift, taper = 0) {
   const pts = pts2.map(([x, y]) => { const n = headNormal(x, y); return new THREE.Vector3(x + n.x * lift, y + n.y * lift, headZ(x, y) + n.z * lift); });
-  const curve = new THREE.CatmullRomCurve3(pts);
-  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, r, 10, false), mat);
-  const g = new THREE.Group(); g.add(tube);
-  for (const p of [pts[0], pts[pts.length - 1]]) { const cap = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), mat); cap.position.copy(p); g.add(cap); }
+  const curve = new THREE.CatmullRomCurve3(pts), SEG = 24, RAD = 10;
+  const geo = new THREE.TubeGeometry(curve, SEG, r, RAD, false);
+  const k = t => 1 - taper * (1 - Math.sin(Math.PI * t));        // 1 in the middle, (1 - taper) at the ends
+  if (taper) {
+    const p = geo.getAttribute('position'), c = new THREE.Vector3(), v = new THREE.Vector3();
+    for (let i = 0; i <= SEG; i++) {
+      curve.getPointAt(i / SEG, c);
+      for (let j = 0; j <= RAD; j++) { const idx = i * (RAD + 1) + j; v.fromBufferAttribute(p, idx).sub(c).multiplyScalar(k(i / SEG)).add(c); p.setXYZ(idx, v.x, v.y, v.z); }
+    }
+    geo.computeVertexNormals();
+  }
+  const g = new THREE.Group(); g.add(new THREE.Mesh(geo, mat));
+  for (const [pt, t] of [[pts[0], 0], [pts[pts.length - 1], 1]]) { const cap = new THREE.Mesh(new THREE.SphereGeometry(r * k(t), 12, 8), mat); cap.position.copy(pt); g.add(cap); }
   return g;
 }
 
@@ -111,8 +120,9 @@ export class Tata {
     this.root.add(this.model);
 
     const orange = clay(K.orange), navy = clay(K.navy, 0.9, 0.04, 0.12), cream = clay(K.cream, 0.6, 0.06), teal = clay(K.teal, 0.55, 0.06),
-      blue = clay(K.blue, 0.45, 0.3), brow = clay(K.brow, 0.6, 0.2);
-    this.mats = { orange, navy, cream, teal, blue };
+      blue = new THREE.MeshPhysicalMaterial({ color: K.blue, roughness: 0.38, clearcoat: 0.55, clearcoatRoughness: 0.25, sheen: 0.2, sheenColor: new THREE.Color(0x8fa6ff) }), brow = clay(K.brow, 0.6, 0.2);
+    const tealV = clay(0xffffff, 0.55, 0.06); tealV.vertexColors = true;
+    this.mats = { orange, navy, cream, teal: tealV, blue };
 
     // ---- pelvis (hip centre at the shirt hem) + legs + shoes
     this.pelvis = new THREE.Group(); this.pelvis.position.y = 0.36; this.model.add(this.pelvis);
@@ -123,22 +133,40 @@ export class Tata {
       const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.112, 0.08, 8, 16), orange); leg.position.y = -0.1; hip.add(leg);
       const ankle = new THREE.Group(); ankle.position.y = -0.2; hip.add(ankle);
       // big teal shoe: an ellipsoid with a flattened sole, longer to the front
-      const sg = new THREE.SphereGeometry(1, 40, 28), sp = sg.getAttribute('position');
+      const sg = new THREE.SphereGeometry(1, 72, 36), sp = sg.getAttribute('position'), col = new Float32Array(sp.count * 3), cc = new THREE.Color();
+      const cTop = new THREE.Color(0x1bb8bd), cMid = new THREE.Color(K.teal), cLow = new THREE.Color(0x03595d);
       for (let i = 0; i < sp.count; i++) {
         let x = sp.getX(i), y = sp.getY(i), z = sp.getZ(i);
+        const yy = y;
         if (y < -0.45) y = -0.45 - (y + 0.45) * 0.2;              // flat sole
         const fw = z > 0 ? 1 + 0.08 * z : 1;                       // a little wider at the toe
-        sp.setXYZ(i, x * 0.232 * fw, y * 0.135, z * 0.26);
+        const phi = Math.atan2(z, x), band = Math.max(0, Math.min(1, (0.55 - yy) / 0.9)) * Math.max(0, Math.min(1, (yy + 0.75) / 0.3));
+        const pleat = 1 - 0.05 * band * (0.5 + 0.5 * Math.cos(phi * 11)) * (z > -0.3 ? 1 : 0.4);   // soft folds round the toe
+        sp.setXYZ(i, x * 0.232 * fw * pleat, y * 0.135, z * 0.26 * pleat);
+        const t = (yy + 1) / 2;
+        cc.copy(cLow).lerp(cMid, Math.min(1, t * 3.2)).lerp(cTop, Math.max(0, (t - 0.55) / 0.45) * 0.6);
+        col.set([cc.r, cc.g, cc.b], i * 3);
       }
+      sg.setAttribute('color', new THREE.BufferAttribute(col, 3));
       sg.computeVertexNormals();
-      const shoe = new THREE.Mesh(sg, teal); shoe.position.set(s * 0.03, -0.08, 0.06); ankle.add(shoe);
+      const shoe = new THREE.Mesh(sg, tealV); shoe.position.set(s * 0.03, -0.08, 0.06); ankle.add(shoe);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.028, 10, 28), teal); rim.rotation.x = Math.PI / 2; rim.position.set(0, -0.005, 0.0); ankle.add(rim);
       (this.shoes ||= []).push(shoe);
       this.legs.push({ s, hip, ankle, prevC: 1 });
     }
 
     // ---- torso: navy polo shirt, cream collar + hem, white P
     this.torso = new THREE.Group(); this.torso.position.y = 0.0; this.pelvis.add(this.torso);
-    const shirt = new THREE.Mesh(new THREE.LatheGeometry(SHIRT.map(([r, y]) => new THREE.Vector2(r, y)), 56), navy);
+    const knit = (() => {                                      // a fine knit (felt-like up close) as a bump map
+      const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+      g.fillStyle = '#808080'; g.fillRect(0, 0, 64, 64);
+      for (let y = 0; y < 64; y += 8) for (let x = 0; x < 64; x += 8) {
+        g.fillStyle = '#b4b4b4'; g.beginPath(); g.ellipse(x + 2.4, y + 4, 1.8, 3.4, -0.5, 0, Math.PI * 2); g.ellipse(x + 5.6, y + 4, 1.8, 3.4, 0.5, 0, Math.PI * 2); g.fill();
+      }
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(36, 9); return t;
+    })();
+    navy.bumpMap = knit; navy.bumpScale = 0.9; navy.needsUpdate = true;
+    const shirt = new THREE.Mesh(new THREE.LatheGeometry(SHIRT.map(([r, y]) => new THREE.Vector2(r, y)), 72), navy);
     shirt.scale.z = SZ; this.torso.add(shirt);
     const hem = new THREE.Mesh(new THREE.TorusGeometry(0.413, 0.034, 12, 64), cream);
     hem.rotation.x = Math.PI / 2; hem.scale.set(1, SZ * 1.005, 1); hem.position.y = 0.012; this.torso.add(hem);
@@ -192,20 +220,21 @@ export class Tata {
       const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.104, 0.1, 8, 16), orange); upper.position.y = -0.06; sh.add(upper);
       const elbow = new THREE.Group(); elbow.position.y = -0.09; sh.add(elbow);
       const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.108, 0.06, 8, 16), orange); fore.position.y = -0.03; elbow.add(fore);
-      const hand = new THREE.Group(); hand.position.set(0, -0.04, 0); hand.rotation.y = Math.atan2(1, s); elbow.add(hand);
-      const palm = ellipsoid(0.14, 0.1, 0.088, orange, 32); palm.position.y = -0.05; hand.add(palm);
-      // fingers ~2.5x as long as thick, side by side, rounded tips (sheet)
-      const fingerGeo = new THREE.CapsuleGeometry(0.042, 0.095, 8, 14);
-      [[-0.084, 0.0], [-0.028, 0.012], [0.028, 0.008], [0.082, -0.014]].forEach(([fx, dl], i) => {
+      const hand = new THREE.Group(); hand.position.set(0, -0.095, 0); hand.rotation.y = Math.atan2(1, s); elbow.add(hand);
+      const wrist = ellipsoid(0.112, 0.07, 0.098, orange, 24); wrist.position.y = 0.02; hand.add(wrist);   // the arm flares into the hand
+      const palm = ellipsoid(0.138, 0.105, 0.092, orange, 32); palm.position.y = -0.04; hand.add(palm);
+      // sheet close-up: four SHORT chunky fingers, side by side with deep creases, tips rounded and a little curled in
+      const fingerGeo = new THREE.CapsuleGeometry(0.05, 0.045, 10, 16);
+      [[-0.078, 0.0], [-0.027, 0.008], [0.025, 0.004], [0.073, -0.016]].forEach(([fx, dl], i) => {
         const f = new THREE.Mesh(fingerGeo, orange);
-        f.position.set(fx, -0.165 - dl, 0.0);
-        f.rotation.set(0.24, 0, -fx * 0.8);              // curled toward the palm (inner-back): the back of the hand shows
-        if (i === 3) f.scale.set(0.93, 0.86, 0.93);
+        f.position.set(fx, -0.135 - dl, -0.006);
+        f.rotation.set(0.15, 0, -fx * 0.7);              // curled toward the palm (inner-back): the back of the hand shows
+        if (i === 3) f.scale.set(0.9, 0.85, 0.9);
         hand.add(f);
       });
-      // thumb: on the inner-front edge (seen from the front at the inside, from the side in front), tip down and in
-      const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.046, 0.055, 8, 14), orange);
-      thumb.position.set(-0.118, -0.075, 0.008); thumb.rotation.set(0.12, 0, -0.55); hand.add(thumb);   // inner-front edge, tip down and in (sheet side view: in front)
+      // thumb: big and round, set apart on the inner-front edge (front view: inside; side view: in front), tip down and in
+      const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.056, 0.05, 10, 16), orange);
+      thumb.position.set(-0.122, -0.06, 0.022); thumb.rotation.set(0.1, 0, -0.62); hand.add(thumb);
       this.arms.push({ s, sh, elbow });
     }
 
@@ -226,9 +255,9 @@ export class Tata {
     // brown at the rim, warm and lighter toward the bottom, a dark pupil; a big catch-light up-right + a small one low-left;
     // a dark upper lash line with a little flick at the outer corner; pink blush on the cheeks
     const whiteM = new THREE.MeshStandardMaterial({ color: K.white, roughness: 0.32 });
-    const IRIS = 0.95, irisTex = (() => {
+    const IRIS = 0.72, irisTex = (() => {
       const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
-      const body = g.createLinearGradient(0, 0, 0, 256); body.addColorStop(0, '#3a1a0b'); body.addColorStop(0.55, '#7a3c17'); body.addColorStop(1, '#c0702e');
+      const body = g.createLinearGradient(0, 0, 0, 256); body.addColorStop(0, '#2e150a'); body.addColorStop(0.6, '#5a2c12'); body.addColorStop(1, '#8a4a20');
       g.fillStyle = body; g.beginPath(); g.arc(128, 128, 128, 0, Math.PI * 2); g.fill();
       const rim = g.createRadialGradient(128, 128, 96, 128, 128, 128); rim.addColorStop(0, 'rgba(30,12,4,0)'); rim.addColorStop(1, 'rgba(30,12,4,.9)');
       g.fillStyle = rim; g.beginPath(); g.arc(128, 128, 128, 0, Math.PI * 2); g.fill();
@@ -244,7 +273,7 @@ export class Tata {
     })();
     const irisM = new THREE.MeshStandardMaterial({ map: irisTex, roughness: 0.12, metalness: 0 });
     const hiM = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const lashM = clay(0x3a1a0b, 0.45, 0.05, 0.5);
+    const lashM = clay(0x5a3018, 0.5, 0.05, 0.4);
     const EW = 0.142, EH = 0.162, ED = 0.09;
     this.eyes = [];
     for (const s of [-1, 1]) {
@@ -258,23 +287,23 @@ export class Tata {
         m.position.set(Math.sin(ax), Math.sin(ay), Math.sqrt(Math.max(0, 1 - Math.sin(ax) ** 2 - Math.sin(ay) ** 2)) * 1.015);
         look.add(m);
       };
-      dot(0.36, 0.38, 0.29); dot(-0.34, -0.4, 0.11);
+      dot(0.27, 0.29, 0.19); dot(-0.27, -0.31, 0.075);
       // upper lash line round the top of the visible rim (where the dome leaves the face), thicker in the middle
       const pts = [];
       for (let i = 0; i <= 20; i++) {
-        const a = Math.PI * (0.06 + 0.88 * i / 20);
-        pts.push(new THREE.Vector3(Math.cos(a) * EW * 0.94, Math.sin(a) * EH * 0.94, 0.036 + 0.014 * Math.sin(a)));
+        const a = Math.PI * (0.16 + 0.68 * i / 20);
+        pts.push(new THREE.Vector3(Math.cos(a) * EW * 0.95, Math.sin(a) * EH * 0.95, 0.036 + 0.014 * Math.sin(a)));
       }
       // (the fox's lid: a smooth dark line hugging the top, no separate lashes)
-      const lash = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.021, 8, false), lashM);
-      const ends = pts.filter((_, i) => i === 0 || i === pts.length - 1).map(p => { const c = new THREE.Mesh(new THREE.SphereGeometry(0.021, 10, 8), lashM); c.position.copy(p); return c; });
+      const lash = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.011, 8, false), lashM);
+      const ends = pts.filter((_, i) => i === 0 || i === pts.length - 1).map(p => { const c = new THREE.Mesh(new THREE.SphereGeometry(0.011, 10, 8), lashM); c.position.copy(p); return c; });
       e.add(lash, ...ends);
       this.head.add(e); this.eyes.push(e);
     }
     // blush: soft pink on the cheeks, under and outside the eyes
     const blushTex = (() => {
       const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
-      const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,120,160,.7)'); gr.addColorStop(0.55, 'rgba(255,130,165,.35)'); gr.addColorStop(1, 'rgba(255,140,170,0)');
+      const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,120,160,.5)'); gr.addColorStop(0.55, 'rgba(255,130,165,.24)'); gr.addColorStop(1, 'rgba(255,140,170,0)');
       g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
     })();
@@ -286,7 +315,7 @@ export class Tata {
       m.renderOrder = 2; this.head.add(m);
     }
     // eyebrows: brown clay arcs, outer ends lower
-    for (const s of [-1, 1]) this.head.add(headTube([[s * 0.335, 0.255], [s * 0.27, 0.3], [s * 0.19, 0.315], [s * 0.115, 0.298]], 0.03, brow, 0.014));
+    for (const s of [-1, 1]) this.head.add(headTube([[s * 0.335, 0.25], [s * 0.27, 0.298], [s * 0.19, 0.314], [s * 0.115, 0.296]], 0.031, brow, 0.014, 0.5));
     // nose: a blue pillow, a little below the eye line
     const nose = new THREE.Mesh(new RoundedBoxGeometry(0.2, 0.158, 0.16, 5, 0.07), blue);
     onHead(nose, 0, -0.035, 0.012); this.head.add(nose);
