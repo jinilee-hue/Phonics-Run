@@ -125,7 +125,7 @@ function handGeometry() {
     d = SDF.smin(d, thumb, 0.03);
     return d;
   };
-  handGeo = sdfMesh(f, [-0.24, -0.27, -0.16, 0.17, 0.16, 0.16], 0.0055);
+  handGeo = sdfMesh(f, [-0.24, -0.27, -0.16, 0.17, 0.23, 0.16], 0.0055);
   return handGeo;
 }
 
@@ -470,9 +470,9 @@ export class Tata {
     else this.idleT = 0;
     if (st.mode === 'enter') wantYaw = Math.PI;
     if (st.mode === 'cheer') wantYaw = 0;
-    if (st.mode === 'pose') wantYaw = st.yaw ?? 0;
+    if (st.mode === 'pose' || st.mode === 'steer') wantYaw = st.yaw ?? 0;
     let dy = wantYaw - this.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-    this.yaw += st.mode === 'pose' ? dy : dy * damp(st.mode === 'idle' || st.mode === 'title' ? 5 : 14, dt);
+    this.yaw += st.mode === 'pose' ? dy : dy * damp(st.mode === 'idle' || st.mode === 'title' ? 5 : st.mode === 'steer' ? 9 : 14, dt);
     this.root.rotation.y = this.yaw;
 
     // ---- legs: short, so the swing is from the hip; the shoe stays near level, toe up as it lands

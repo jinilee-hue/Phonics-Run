@@ -47,6 +47,13 @@ SCENES = {
                ('toTitle', 0), ('step', 0.5), ('shot', 'th3title')],
     'over': [('start', 0), ('tp', 50, 1.3), ('step', 0.3), ('press', 'right', True), ('step', 0.5), ('press', 'right', False), ('step', 0.6),
              ('tp', 26, 3), ('step', 2.2), ('tp', 26, 3), ('step', 2.2), ('rt', 1.5), ('shot', 'over')],
+    'enter': [('start', 0), ('rt', 0.6),
+              ('tp', 18, 0.1), ('step', 0.5), ('tp', 34.5, 3.1), ('step', 0.5), ('tp', 57, 1.3), ('step', 0.5), ('tp', 74, 3.9), ('step', 0.5),
+              ('tp', 87.5, 1.3), ('press', 'right', True), ('step', 0.3), ('press', 'right', False), ('step', 0.6),
+              ('tp', 104.5, 2.3), ('press', 'right', True), ('step', 0.4), ('press', 'right', False), ('rt', 0.4), ('shot', 'e0'),
+              ('rt', 0.9), ('shot', 'e1'), ('rt', 0.35), ('shot', 'e2'), ('rt', 0.3), ('shot', 'e3'), ('rt', 0.3), ('shot', 'e4'), ('rt', 0.3), ('shot', 'e5'), ('rt', 0.4), ('shot', 'e6')],
+    'candy': [('unlock', 0), ('start', 1), ('tp', 12, 0.2), ('step', 0.6), ('shot', 'c1'), ('tp', 30, 0.2), ('step', 0.6), ('shot', 'c2'),
+              ('tp', 50, 5.2), ('step', 0.6), ('shot', 'c3'), ('tp', 112, 1.8), ('step', 0.6), ('shot', 'c4')],
     'shop': [('rt', 0.5), ('give', 50), ('shopopen', 0), ('rt', 1.2), ('shot', 'shop1'), ('buy', 'crown'), ('buy', 'shades'), ('buy', 'goldshoes'), ('rt', 1.5), ('shot', 'shop2')],
 }
 

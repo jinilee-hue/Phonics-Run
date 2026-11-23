@@ -167,7 +167,8 @@ export const THEMES = {
   candy: {
     sky: [0x5b4bd0, 0xff7fb4, 0xffc690], fog: [0xffb9b0, 60, 240], hemi: [0xffe0d6, 0xb07ab0, 1.0], sun: [0xffbf94, 2.5],
     env: 0.3, exposure: 1.0, bloom: [0, 9], grass: 0xffa6d2, grassGlow: 0, dirt: [0x8c4f2c, 0xc27a3e, 0xe2a462, 0xf2c681],
-    tree: 'candy', fence: { color: 0xffffff, stripes: '#ff4f6d' }, cloud: [0xfff0f4, 0xffb3cc, 0.28],
+    tree: 'candy', fence: { color: 0xffffff, stripes: '#ff9ec4' }, cloud: [0xfff0f4, 0xffb3cc, 0.28],
+    frostings: [0xffb8d6, 0xb6efd9, 0xd6c6ff, 0xfff0a6, 0xffcfae],   // pastel icing, one per island
     balloons: [['#ff6fa8', '#fff3c4'], ['#ffb347', '#ffffff'], ['#a57bff', '#ffd6f0'], ['#4fd6c8', '#fff3c4'], ['#ff5a7a', '#ffd34d']],
     cardGlow: 0.18, playerLight: 0, stars: false,
   },
@@ -256,7 +257,7 @@ export function slab(parent, len, color, { depth = 3, h = 0.7 } = {}) {
   return g;
 }
 /** floating dirt island with a grass cap; local y = 0 is the walkable top, the cap is w x d */
-export function island(parent, w, d, h, grass = TH.grass) {
+export function island(parent, w, d, h, grass = TH.frostings ? TH.frostings[(rnd() * TH.frostings.length) | 0] : TH.grass) {
   const g = new THREE.Group(), D = TH.dirt;
   const dirtGeo = colorByY(new RoundedBoxGeometry(w - 0.4, h, d - 0.4, 3, 0.5), -h / 2, h / 2, [[0, D[0]], [0.55, D[1]], [0.9, D[2]], [1, D[3]]]);
   const dirt = new THREE.Mesh(dirtGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
@@ -270,6 +271,7 @@ export function island(parent, w, d, h, grass = TH.grass) {
       const drip = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, rr(0.15, 0.55), 4, 10), dm);
       drip.position.set(x, -0.62 - rr(0, 0.15), d / 2 - 0.06); g.add(shade(drip));
     }
+    sprinkles(g, w, d);
   }
   parent.add(g);
   return g;
@@ -284,22 +286,103 @@ function swirlTex(a, b) {
     c.stroke();
   }));
 }
+// ---- candy land (user 2026-11-23: "사탕들도 귀엽게 조금 더 입체감 있게, 파스텔 톤, 토핑 바른 것들도"): glossy pastel candy
+const PASTEL = [0xffb3d1, 0xb4eed8, 0xd2c0ff, 0xfff0a0, 0xffc9a6, 0xb7dbff];
+const SPRINKLE = [0xff7fb0, 0x7fd8ff, 0xffe066, 0x9cf0a8, 0xc59bff, 0xffffff];
+const candyM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08, sheen: 0.3, sheenColor: new THREE.Color(0xffffff) });
+const softM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.55, sheen: 0.6, sheenColor: new THREE.Color(0xffffff) });
+let sprinkleGeo = null;
+/** colourful sprinkles scattered over a surface: pts = [[x, y, z, nx, ny, nz]] (instanced) */
+function sprinkleMesh(pts, scale = 1) {
+  sprinkleGeo ||= new THREE.CapsuleGeometry(0.022, 0.07, 3, 6);
+  const m = new THREE.InstancedMesh(sprinkleGeo, new THREE.MeshStandardMaterial({ roughness: 0.4 }), pts.length);
+  const q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color(), M = new THREE.Matrix4(), S = V(scale, scale, scale);
+  pts.forEach((p, i) => {
+    e.set(rr(0, 6.3), rr(0, 6.3), rr(0, 6.3)); q.setFromEuler(e);
+    M.compose(V(p[0], p[1], p[2]), q, S); m.setMatrixAt(i, M);
+    m.setColorAt(i, c.set(SPRINKLE[(rnd() * SPRINKLE.length) | 0]));
+  });
+  m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true;
+  return m;
+}
+/** sprinkles on an island's icing: behind the path and along the front edge (the path itself stays clear) */
+function sprinkles(g, w, d) {
+  const pts = [], n = Math.round(w * 4);
+  for (let i = 0; i < n; i++) {
+    const front = rnd() < 0.3, z = front ? rr(d / 2 - 0.55, d / 2 - 0.1) : rr(-d / 2 + 0.3, -0.1);
+    pts.push([rr(-w / 2 + 0.3, w / 2 - 0.3), 0.03, z]);
+  }
+  g.add(sprinkleMesh(pts));
+}
+function swirlTex2(a, b) {
+  const k = 'p' + a + b;
+  return (candyTex[k] ||= canvasTex(256, 256, c => {
+    c.fillStyle = b; c.fillRect(0, 0, 256, 256);
+    c.translate(128, 128);
+    for (let arm = 0; arm < 3; arm++) {                         // three soft swirl arms
+      c.strokeStyle = a; c.lineWidth = 20; c.lineCap = 'round'; c.beginPath();
+      for (let t = 0; t < 1; t += 0.01) { const ang = t * 7 + arm * 2.094, r = 8 + t * 118; c.lineTo(Math.cos(ang) * r, Math.sin(ang) * r); }
+      c.stroke();
+    }
+  }));
+}
+function lollipop(g, s) {
+  const [a, b] = [['#ffb3d1', '#ffffff'], ['#a8ecd5', '#ffffff'], ['#cdb8ff', '#fff6c9'], ['#ffc9a6', '#fffaf0'], ['#b2d8ff', '#ffe6f2']][(rnd() * 5) | 0];
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.065 * s, 0.065 * s, 1.75 * s, 12), std(0xfffaf2, 0.35));
+  stick.position.y = 0.88 * s; g.add(stick);
+  // a domed candy disc (thicker in the middle, rounded rim) with the swirl on both faces, glossy
+  const prof = [[0, 0.17], [0.3, 0.16], [0.55, 0.12], [0.7, 0.06], [0.74, 0], [0.7, -0.06], [0.55, -0.12], [0.3, -0.16], [0, -0.17]];
+  const geo = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r * s, y * s)), 48);
+  const p = geo.getAttribute('position'), uv = geo.getAttribute('uv');
+  for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / (0.74 * s) * 0.5 + 0.5, p.getZ(i) / (0.74 * s) * 0.5 + 0.5);
+  const m = new THREE.MeshPhysicalMaterial({ map: swirlTex2(a, b), roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.06 });
+  const disc = new THREE.Mesh(geo, m); disc.rotation.x = Math.PI / 2; disc.position.y = 2.0 * s; g.add(disc);
+  // a ribbon bow where the stick meets the candy
+  const bowM = softM(PASTEL[(rnd() * PASTEL.length) | 0]);
+  for (const sx of [-1, 1]) { const loop = new THREE.Mesh(new THREE.SphereGeometry(0.17 * s, 16, 12), bowM); loop.scale.set(1.3, 0.75, 0.55); loop.position.set(sx * 0.2 * s, 1.27 * s, 0.05 * s); loop.rotation.z = sx * 0.35; g.add(loop); }
+  const knot = new THREE.Mesh(new THREE.SphereGeometry(0.09 * s, 12, 10), bowM); knot.position.set(0, 1.27 * s, 0.08 * s); g.add(knot);
+}
+function cupcake(g, s) {
+  // a ridged paper cup, a three-tier swirl of icing, sprinkles and a cherry
+  const cupGeo = new THREE.CylinderGeometry(0.62 * s, 0.46 * s, 0.7 * s, 36, 1);
+  const cp = cupGeo.getAttribute('position');
+  for (let i = 0; i < cp.count; i++) { const x = cp.getX(i), z = cp.getZ(i), a = Math.atan2(z, x), k = 1 + 0.045 * Math.cos(a * 18); cp.setX(i, x * k); cp.setZ(i, z * k); }
+  cupGeo.computeVertexNormals();
+  const cup = new THREE.Mesh(cupGeo, softM(PASTEL[(rnd() * PASTEL.length) | 0])); cup.position.y = 0.35 * s; g.add(cup);
+  const icing = candyM([0xfff6fb, 0xffd3e6, 0xd9fff0, 0xece2ff][(rnd() * 4) | 0]);
+  [[0.66, 0.2, 0.82], [0.5, 0.18, 1.05], [0.32, 0.15, 1.25]].forEach(([r, t, y]) => { const tor = new THREE.Mesh(new THREE.TorusGeometry(r * s, t * s, 16, 40), icing); tor.rotation.x = Math.PI / 2; tor.position.y = y * s; g.add(tor); });
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.32 * s, 20), icing); tip.position.y = 1.45 * s; g.add(tip);
+  const cherry = new THREE.Mesh(new THREE.SphereGeometry(0.16 * s, 20, 14), candyM(0xff5c8a)); cherry.position.y = 1.66 * s; g.add(cherry);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.018 * s, 0.018 * s, 0.24 * s, 6), std(0x6bbf6b, 0.6)); stem.position.set(0.05 * s, 1.84 * s, 0); stem.rotation.z = -0.4; g.add(stem);
+  const pts = [];
+  for (let i = 0; i < 26; i++) { const a = rr(0, 6.28), lvl = (rnd() * 3) | 0, R = [0.7, 0.55, 0.36][lvl] * s, Y = [0.9, 1.13, 1.32][lvl] * s; pts.push([Math.cos(a) * R, Y, Math.sin(a) * R]); }
+  g.add(sprinkleMesh(pts, s));
+}
+function donut(g, s) {
+  // a big donut standing on its edge: a golden ring, pastel glaze on the front with sprinkles
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62 * s, 0.32 * s, 24, 48), softM(0xf0b46c)); g.add(ring);
+  const glazeGeo = new THREE.TorusGeometry(0.62 * s, 0.335 * s, 24, 48), gp = glazeGeo.getAttribute('position');
+  for (let i = 0; i < gp.count; i++) { if (gp.getZ(i) < -0.02 * s) gp.setZ(i, -0.02 * s + (gp.getZ(i) + 0.02 * s) * 0.15); }
+  glazeGeo.computeVertexNormals();
+  const glaze = new THREE.Mesh(glazeGeo, candyM(PASTEL[(rnd() * PASTEL.length) | 0])); glaze.position.z = 0.03 * s; g.add(glaze);
+  const pts = [];
+  for (let i = 0; i < 34; i++) { const a = rr(0, 6.28), r = rr(0.42, 0.84) * s; pts.push([Math.cos(a) * r, Math.sin(a) * r, 0.33 * s]); }
+  g.add(sprinkleMesh(pts, s));
+  g.position.y += 0.94 * s; g.rotation.y = rr(-0.3, 0.3); g.rotation.z = rr(-0.15, 0.15);
+}
+function cottonCandy(g, s) {
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * s, 0.06 * s, 1.5 * s, 10), std(0xfffaf2, 0.35)); stick.position.y = 0.75 * s; g.add(stick);
+  const c = [0xffc4e0, 0xc6e3ff, 0xe3d4ff, 0xc9f5e4][(rnd() * 4) | 0];
+  const m = new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.95, sheen: 1, sheenRoughness: 0.4, sheenColor: new THREE.Color(0xffffff), emissive: c, emissiveIntensity: 0.1 });
+  [[0, 1.95, 0, 0.72], [0.42, 1.68, 0.12, 0.48], [-0.4, 1.72, 0.06, 0.5], [0.05, 2.4, -0.05, 0.42]].forEach(([x, y, z, r]) => { const b = new THREE.Mesh(blob(r * s, 0.14), m); b.position.set(x * s, y * s, z * s); g.add(b); });
+}
 function candyTree(parent, x, z, s, y) {
   const g = new THREE.Group(); g.position.set(x, y, z);
-  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * s, 0.07 * s, 1.7 * s, 10), std(0xfff8ef, 0.4));
-  stick.position.y = 0.85 * s; g.add(stick);
-  const cols = [['#ff4f8b', '#ffffff'], ['#7b5cff', '#ffe0f4'], ['#21c7b4', '#fff6c8'], ['#ff9a3c', '#fff3d6']];
-  if (rnd() < 0.55) {                                         // lollipop: a swirl disc facing the camera
-    const [a, b] = cols[(rnd() * cols.length) | 0];
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.72 * s, 0.72 * s, 0.2 * s, 40), [std(0xffffff, 0.3, { color: new THREE.Color(a) }), new THREE.MeshStandardMaterial({ map: swirlTex(a, b), roughness: 0.25 }), new THREE.MeshStandardMaterial({ map: swirlTex(a, b), roughness: 0.25 })]);
-    disc.rotation.x = Math.PI / 2; disc.position.y = 1.95 * s; g.add(disc);
-  } else {                                                     // cotton candy: a fluffy pastel blob
-    const c = [0xffb6dc, 0xb9d8ff, 0xd9c4ff][(rnd() * 3) | 0];
-    const m = std(c, 0.95, { emissive: c, emissiveIntensity: 0.12 });
-    const t1 = new THREE.Mesh(blob(0.78 * s, 0.12), m); t1.position.y = 1.95 * s;
-    const t2 = new THREE.Mesh(blob(0.5 * s, 0.12), m); t2.position.set(0.45 * s, 1.6 * s, 0.1 * s);
-    g.add(t1, t2);
-  }
+  const k = rnd();
+  if (k < 0.34) lollipop(g, s);
+  else if (k < 0.56) cupcake(g, s * 1.05);
+  else if (k < 0.76) donut(g, s * 0.95);
+  else cottonCandy(g, s);
   parent.add(shade(g));
   return g;
 }
@@ -336,13 +419,16 @@ export function tree(parent, x, z, s = 1, y = 0) {
 }
 const gumProf = [[0, 0], [0.34, 0], [0.37, 0.07], [0.31, 0.28], [0.19, 0.42], [0, 0.47]].map(([r, y]) => new THREE.Vector2(r, y));
 export function bush(parent, x, z, s = 1, y = 0) {
-  if (TH.tree === 'candy') {                                   // gumdrops
+  if (TH.tree === 'candy') {                                   // pastel gumdrops (sugared) and a wrapped sweet
     const g = new THREE.Group(); g.position.set(x, y, z);
-    const cols = [0xff4f6d, 0xffc93a, 0x37d39b, 0xa57bff, 0x4fb3ff];
-    for (let i = 0; i < 3; i++) {
-      const m = new THREE.Mesh(new THREE.LatheGeometry(gumProf, 24), std(cols[(rnd() * cols.length) | 0], 0.85));
-      m.scale.setScalar(s * rr(0.8, 1.15)); m.position.set((i - 1) * 0.5 * s, 0, rr(-0.15, 0.15)); g.add(m);
+    for (let i = 0; i < 2; i++) {
+      const c = PASTEL[(rnd() * PASTEL.length) | 0];
+      const m = new THREE.Mesh(new THREE.LatheGeometry(gumProf, 28), new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.75, sheen: 1, sheenColor: new THREE.Color(0xffffff), sheenRoughness: 0.3 }));
+      m.scale.setScalar(s * rr(0.9, 1.2)); m.position.set((i ? 0.55 : -0.55) * s, 0, rr(-0.15, 0.15)); g.add(m);
     }
+    const wc = PASTEL[(rnd() * PASTEL.length) | 0], wrapM = new THREE.MeshPhysicalMaterial({ color: wc, roughness: 0.15, clearcoat: 1, transparent: true, opacity: 0.85 });
+    const sweet = new THREE.Mesh(new THREE.SphereGeometry(0.26 * s, 24, 16), candyM(wc)); sweet.scale.set(1.25, 1, 1); sweet.position.y = 0.28 * s; g.add(sweet);
+    for (const sx of [-1, 1]) { const tw = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.32 * s, 14), wrapM); tw.rotation.z = sx * Math.PI / 2; tw.position.set(sx * 0.44 * s, 0.28 * s, 0); g.add(tw); }
     parent.add(shade(g)); return g;
   }
   if (TH.tree === 'crystal') {                                 // glowing orbs in the grass

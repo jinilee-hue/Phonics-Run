@@ -143,7 +143,7 @@ function resetRun() {
   Object.assign(P, { x: L.start.x, y: L.start.y, vx: 0, vy: 0, grounded: true, ground: L.plats[0], facing: 1, coyote: 0, buffer: 0, inv: 0, lock: 0, hurt: 0 });
   const x0 = parseFloat(qs.get('x'));
   if (G.screen === 'play' && isFinite(x0) && !G.usedX) { G.usedX = true; P.x = x0; P.y = 12; P.grounded = false; }
-  Object.assign(G, { lastInput: 0, lastHelp: -99, helping: false, hearts: HEARTS, coins: 0, got: [], said: [], lost: 0, wrong: 0, falls: 0, t: 0, phase: 'play', phaseT: 0,
+  Object.assign(G, { cheerT: 0, ent: null, lastInput: 0, lastHelp: -99, helping: false, hearts: HEARTS, coins: 0, got: [], said: [], lost: 0, wrong: 0, falls: 0, t: 0, phase: 'play', phaseT: 0,
     safe: { x: P.x, y: P.y }, camY: P.y, lockedAt: -9, firstGood: true, jumpTold: false, ready: false });
   cam.x = clampCamX(P.x + 2); cam.y = P.y; cam.look = 2;
   runner.root.position.set(P.x, P.y, 0); runner.root.scale.setScalar(1); runner.facing = 1; runner.yaw = 0.55; runner.flash = 0;
@@ -277,7 +277,7 @@ function levelClear() {
   $('cNext').hidden = G.idx >= LEVELS.length - 1;
   const g = G.lv.gate;
   Object.assign(P, { x: g.x, y: g.top, vx: 0, vy: 0, grounded: true, facing: 1 });
-  runner.root.scale.setScalar(1);
+  runner.root.scale.setScalar(1); runner.root.position.set(P.x, P.y, 0); G.ent = null;
   setScreen('clear');
   A.sfx.clear();
   const last = LEVELS.every((L, i) => (save.stars[L.id] || 0) > 0 || i === G.idx) && G.idx === LEVELS.length - 1;
@@ -426,26 +426,46 @@ function updateGate(dt) {
 function openAndEnter() {
   const g = G.lv.gate;
   g.opening = true; A.sfx.open();
-  setTimeout(() => { if (G.phase === 'say' || G.phase === 'play') { G.phase = 'enter'; G.phaseT = 0; A.sfx.portal(); } }, 1100);
+  G.cheerT = 0.85;                                             // a happy hop while the swirl opens
+  setTimeout(() => { if (G.phase === 'say' || G.phase === 'play') { G.phase = 'enter'; G.phaseT = 0; G.ent = null; } }, 1150);
 }
+/** into the gate (user: "문이 열렸을때 자연스럽게 뛰어서 들어가게"): turn toward the portal while starting to run, run up to
+ *  just in front of it, jump, dive through the swirl (Tata shrinks into it, sparkles, a flash) → the result card */
 function enterGate(dt) {
-  const g = G.lv.gate;
-  G.phaseT += dt;
-  const t = G.phaseT;
-  if (t < 0.45) {
-    const dx = g.x - P.x;
-    P.x += Math.sign(dx) * Math.min(Math.abs(dx), dt * 5);
-    P.vx = Math.abs(dx) > 0.05 ? Math.sign(dx) * 5 : 0;
-    runner.root.position.set(P.x, P.y, 0);
+  const g = G.lv.gate, PZ = g.group.position.z;               // the portal's plane
+  const st = G.ent ||= { stage: 'run', t: 0, z: 0, y: 0, yaw: runner.yaw, spd: 0, burst: false };
+  st.t += dt; G.phaseT += dt;
+  let vx = 0, vy = 0, grounded = true, scale = 1;
+  const tx = g.x, tz = PZ + 1.05;                              // the take-off spot
+  if (st.stage === 'run') {
+    const dx = tx - P.x, dz = tz - st.z, d = Math.hypot(dx, dz);
+    st.spd = Math.min(5.2, st.spd + 14 * dt);                  // speeds up from standing
+    const step = Math.min(d, st.spd * dt);
+    if (d > 1e-4) { P.x += (dx / d) * step; st.z += (dz / d) * step; st.yaw = Math.atan2(dx, dz); }
+    vx = st.spd;
+    if (d < 0.04) {
+      st.stage = 'jump'; st.t = 0; st.z0 = st.z; st.yaw = Math.PI;
+      runner.jumped(); A.sfx.jump(); A.sfx.portal();
+      E.puff(P.x, P.y + 0.05, st.z + 0.2, 0, 0.6, 0.6);
+    }
+  } else if (st.stage === 'jump') {
+    const T = 0.7, u = Math.min(1, st.t / T);
+    st.y = 4 * 1.35 * u * (1 - u) + 0.5 * u;                   // up and in
+    st.z = st.z0 + (PZ - 0.9 - st.z0) * E.smooth(0, 1, u);
+    vy = 9 * (1 - 2 * u); grounded = false; vx = 3;
+    scale = 1 - E.smooth(PZ + 0.25, PZ - 0.85, st.z) * 0.999;   // shrinks as it passes through the swirl
+    if (!st.burst && st.z < PZ + 0.1) { st.burst = true; E.burst(new THREE.Vector3(g.x, g.top + 2.0, PZ + 0.2), 0xffd6ff, 1.1); }
+    g.U.uFlash.value = E.smooth(0.35, 1, u);
+    $('flash').style.opacity = String(0.85 * E.smooth(0.7, 1, u));
+    if (u >= 1) { st.stage = 'gone'; st.t = 0; }
   } else {
-    const u = Math.min(1, (t - 0.45) / 0.75);
-    P.vx = 0;
-    runner.root.position.set(P.x, P.y + Math.sin(u * Math.PI) * 1.4 + u * 0.6, -1.7 * Math.min(1, u * 1.3));
-    runner.root.scale.setScalar(Math.max(0.001, 1 - E.smooth(0.45, 1, u)));
-    g.U.uFlash.value = E.smooth(0.3, 1, u);
-    $('flash').style.opacity = String(0.85 * E.smooth(0.55, 1, u));
+    scale = 0.001;
+    if (st.t > 0.3) { $('flash').style.opacity = 0; g.U.uFlash.value = 0; levelClear(); return; }
   }
-  if (t > 1.55) { $('flash').style.opacity = 0; g.U.uFlash.value = 0; levelClear(); }
+  P.vx = 0;
+  runner.root.position.set(P.x, P.y + st.y, st.z);
+  runner.root.scale.setScalar(Math.max(0.001, scale));
+  runner.update(dt, { vx, vy, grounded, facing: 1, max: PH.run, mode: 'steer', yaw: st.yaw });
 }
 
 // ---------------------------------------------------------------- say-it turn at the gate (phonics-kit rules 2–6):
@@ -605,11 +625,14 @@ function tick(dt) {
   } else {
     physics(dt, false);           // say turn, done, title, shop, results: stand
   }
-  if (G.phase !== 'enter') runner.root.position.set(P.x, P.y, 0);
-  const still = P.grounded && Math.abs(P.vx) < 0.3;
-  const mode = G.phase === 'enter' ? 'enter' : P.hurt > 0 ? 'hurt' : G.screen === 'clear' ? 'cheer'
-    : G.phase === 'say' ? 'idle' : still ? (G.screen === 'title' || G.screen === 'shop' ? 'title' : 'idle') : 'play';
-  runner.update(dt, { vx: P.vx, vy: P.vy, grounded: P.grounded || G.phase === 'enter', facing: P.facing, max: PH.run, mode });
+  if (G.phase !== 'enter') {                                  // (entering the gate, enterGate drives Tata itself)
+    runner.root.position.set(P.x, P.y, 0);
+    if (G.cheerT > 0) G.cheerT -= dt;
+    const still = P.grounded && Math.abs(P.vx) < 0.3;
+    const mode = P.hurt > 0 ? 'hurt' : G.screen === 'clear' || G.cheerT > 0 ? 'cheer'
+      : G.phase === 'say' ? 'idle' : still ? (G.screen === 'title' || G.screen === 'shop' ? 'title' : 'idle') : 'play';
+    runner.update(dt, { vx: P.vx, vy: P.vy, grounded: P.grounded, facing: P.facing, max: PH.run, mode });
+  }
   if (playing || G.screen === 'clear') updateGate(dt);
   updateItems(L.items, dt, G.t);
   E.updateSparks(dt);
