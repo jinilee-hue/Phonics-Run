@@ -14,6 +14,7 @@ AUTO = r"""
   if (card) tx = card.m ? card.x : (card.x <= 0 ? 1.4 : -1.4);
   if (nx && !nx.solid && nx.zMax > P.z - 6) tx = (nx.x0 + nx.x1) / 2;
   if (cur && cur.lift) tx = (cur.x0 + cur.x1) / 2;
+  if (cur && !cur.solid) tx = Math.max(cur.x0 + 0.6, Math.min(cur.x1 - 0.6, tx));   // stay on a narrow step
   let mz = -1;
   if (P.grounded && cur && nx) {
     const toEdge = P.z - cur.zMin, gap = nx.zMax < cur.zMin - 0.05 || nx.top > cur.top + 0.15;

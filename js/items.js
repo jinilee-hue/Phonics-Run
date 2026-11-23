@@ -90,7 +90,7 @@ export function updateItems(items, dt, T) {
     const R = it.root;
     if (it.state === 'idle') {
       R.position.y = it.y + Math.sin(T * 2 + it.phase) * 0.1;
-      R.rotation.y = Math.sin(T * 1.1 + it.phase) * 0.28;
+      R.rotation.y = (it.face || 0) + Math.sin(T * 1.1 + it.phase) * 0.28;   // face = toward the camera (side view: +x)
       R.rotation.z = Math.sin(T * 1.6 + it.phase) * 0.04;
       it.halo.material.opacity = 0.16 + 0.06 * Math.sin(T * 3 + it.phase);
       const pulse = it.pulse > 0 ? (it.pulse -= dt, 1 + 0.12 * Math.sin((1 - it.pulse / 0.5) * Math.PI)) : 1;

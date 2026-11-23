@@ -29,6 +29,12 @@ const PH = {
   coyote: 0.12, buffer: 0.15, hw: 0.42, h: 1.95,
 };
 const PATH_HALF = W.PATH_W / 2;
+// two versions (user 2026-11-23: "뒤모습 보이며 달리는거랑 옆으로 달리는거랑 두가지 버전"): 'back' = behind Tata, the course runs
+// into the screen, a stick; 'side' = from the side, the course runs to the right, ← → buttons. ?view=side|back, else the
+// title's toggle (remembered on this device).
+const VIEW_KEY = 'phonics-run.view';
+let VIEW = (() => { const q = new URLSearchParams(location.search).get('view'); if (q === 'side' || q === 'back') return q; try { return localStorage.getItem(VIEW_KEY) || 'back'; } catch (e) { return 'back'; } })();
+const SIDE = () => VIEW === 'side';
 const HEARTS = 3, TRAP_COST = 2, SAY_REWARD = 3;
 
 // ---------------------------------------------------------------- state
@@ -68,6 +74,7 @@ const keys = { up: false, down: false, left: false, right: false, jump: false };
 const joy = { x: 0, z: 0, on: false };
 let jumpEdge = false;
 const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Space: 'jump', KeyZ: 'jump' };
+const keyOf = code => { const k = KEYMAP[code]; return SIDE() && k === 'up' ? 'jump' : SIDE() && k === 'down' ? null : k; };   // side view: ↑ / W jump
 function inputActive() { G.lastInput = G.t; if (G.helping) { G.helping = false; pointHand(null); } }
 function press(k, down) {
   if (G.auto) return;                       // the demo plays itself
@@ -75,32 +82,35 @@ function press(k, down) {
   if (down) inputActive();
   keys[k] = down;
   if (k === 'jump') $('bJump').classList.toggle('on', down);
+  if (k === 'left' || k === 'right') $(k === 'left' ? 'bLeft' : 'bRight').classList.toggle('on', down);
 }
 /** the move direction, x right / z toward the camera, length ≤ 1 */
 function inputVec() {
   const K = G.auto || keys;
   let x = 0, z = 0;
   if (G.auto) { x = G.auto.x || 0; z = G.auto.z || 0; }
+  else if (SIDE()) { z = (K.left ? 1 : 0) - (K.right ? 1 : 0); }          // → = along the course (-z)
   else if (joy.on) { x = joy.x; z = joy.z; }
   else { x = (K.right ? 1 : 0) - (K.left ? 1 : 0); z = (K.down ? 1 : 0) - (K.up ? 1 : 0); }
+  if (SIDE()) x = 0;
   const l = Math.hypot(x, z); if (l > 1) { x /= l; z /= l; }
   return { x, z };
 }
 addEventListener('keydown', e => {
   A.unlock();
-  const k = KEYMAP[e.code];
+  const k = keyOf(e.code);
   if (!k) { if (G.screen === 'title' && e.code === 'Enter') startLevel(G.idx); return; }
   e.preventDefault();
   if (e.repeat) return;
   if (G.screen === 'title' && k === 'jump') { startLevel(G.idx); return; }
   press(k, true);
 });
-addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) press(k, false); });
+addEventListener('keyup', e => { const k = keyOf(e.code); if (k) press(k, false); });
 addEventListener('blur', () => { for (const k of Object.keys(keys)) press(k, false); joy.on = false; drawJoy(); });
-{
-  const el = $('bJump');
-  el.addEventListener('pointerdown', e => { A.unlock(); el.setPointerCapture(e.pointerId); press('jump', true); e.preventDefault(); });
-  const up = () => press('jump', false);
+for (const [id, k] of [['bJump', 'jump'], ['bLeft', 'left'], ['bRight', 'right']]) {
+  const el = $(id);
+  el.addEventListener('pointerdown', e => { A.unlock(); el.setPointerCapture(e.pointerId); press(k, true); e.preventDefault(); });
+  const up = () => press(k, false);
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
 }
 // the stick: drag the knob anywhere inside the ring (it springs back when let go)
@@ -128,9 +138,12 @@ addEventListener('contextmenu', e => e.preventDefault());
 
 // ---------------------------------------------------------------- HUD
 const HEART_SVG = on => `<img class="${on ? '' : 'lost'}" src="${on ? ICON.heartOn : ICON.heartOff}" alt="" draggable="false">`;
-function drawHearts(popIdx = -1) {
-  $('hearts').innerHTML = Array.from({ length: HEARTS }, (_, i) => HEART_SVG(i < G.hearts)).join('');
-  if (popIdx >= 0) $('hearts').children[popIdx]?.classList.add('pop');
+function drawHearts(lostIdx = -1) {
+  // only the hearts left (user: "위에 빈 하트 있는건 삭제해줘"); a heart just lost breaks and fades out, then is gone
+  // (it used to get the class 'pop' — the floating word's class — and jumped out of the pill)
+  const n = G.hearts + (lostIdx >= 0 ? 1 : 0);
+  $('hearts').innerHTML = Array.from({ length: n }, (_, i) => `<img class="${i === lostIdx ? 'gone' : ''}" src="${ICON.heartOn}" alt="" draggable="false">`).join('');
+  if (lostIdx >= 0) setTimeout(() => { if (G.hearts < n) drawHearts(); }, 650);
 }
 function drawSlots() {
   const words = G.lv.words;
@@ -165,7 +178,7 @@ function setScreen(s) { G.screen = s; app.dataset.screen = s; }
 function load(idx) {
   G.lv?.dispose();
   G.idx = idx;
-  G.lv = buildLevel(LEVELS[idx]);
+  G.lv = buildLevel(LEVELS[idx], SIDE());
   // build every shader of the new world now (a new kind of object coming into view first otherwise stalls a frame)
   try { E.renderer.compile(E.scene, E.camera); } catch (e) { /* compile later, on first draw */ }
   A.preload([...G.lv.items.filter(i => i.kind === 'card').map(i => 'w:' + i.word), 's:m']);
@@ -228,7 +241,7 @@ function toTitle() {
 // little while the tutor explains and a glove points at the buttons; no rewards, no record; SKIP ends it
 function pointHand(id) {
   const h = $('hand');
-  for (const b of ['joy', 'bJump']) $(b).classList.remove('guide');
+  for (const b of ['joy', 'bJump', 'bRight']) $(b).classList.remove('guide');
   h.classList.toggle('push', id === 'joy');
   if (!id) { h.classList.remove('show'); return; }
   const b = $(id === 'joy' ? 'knob' : id), r = b.getBoundingClientRect();
@@ -247,11 +260,11 @@ async function teachDemo() {
   await wait(400); if (!alive()) return;
   await A.say('t:hello'); if (!alive()) return;
   await A.seq(['s:m', 0.1, 's:m', 0.2, 't:howto']); if (!alive()) return;
-  pointHand('joy');
+  pointHand(SIDE() ? 'bRight' : 'joy');
   await A.say('t:demo1'); if (!alive()) return;
-  stick(-0.35, -1);                                            // run up and a little left: to the moon card
+  stick(SIDE() ? 0 : -0.35, -1);                               // run up and a little left: to the moon card
   await until(() => d() > 15.6 || !alive()); if (!alive()) return;
-  stick(0.3, -1);
+  stick(SIDE() ? 0 : 0.3, -1);
   await until(() => d() > 20 || !alive()); if (!alive()) return;
   stick(0, 0);
   await until(() => (Math.hypot(P.vx, P.vz) < 0.4 && !A.voiceBusy()) || !alive()); if (!alive()) return;
@@ -314,7 +327,7 @@ function levelClear() {
   $('coinsEnd').textContent = G.coins;
   $('cNext').hidden = G.idx >= LEVELS.length - 1;
   const g = G.lv.gate;
-  Object.assign(P, { x: g.x, y: g.top, z: g.z + 2.2, vx: 0, vy: 0, vz: 0, grounded: true });
+  Object.assign(P, { x: g.x + g.nx * 2.2, y: g.top, z: g.z + g.nz * 2.2, vx: 0, vy: 0, vz: 0, grounded: true });
   runner.root.scale.setScalar(1); runner.root.position.set(P.x, P.y, P.z); G.ent = null;
   setScreen('clear');
   A.sfx.clear();
@@ -327,7 +340,7 @@ const inside = (p, x, z, m) => x > p.x0 - m && x < p.x1 + m && z > p.zMin - m &&
 function physics(dt, control) {
   const L = G.lv, r = PH.hw, K = G.auto || keys, grav = L.gravity || 1;
   const v = control && P.lock <= 0 ? inputVec() : { x: 0, z: 0 }, moving = Math.hypot(v.x, v.z) > 0.05;
-  if (moving) P.yaw = Math.atan2(v.x, v.z);
+  if (moving) P.yaw = SIDE() ? (v.z < 0 ? Math.PI - 0.55 : 0.55) : Math.atan2(v.x, v.z);   // side: a little toward the camera
   // run: the velocity turns toward the stick
   const acc = P.grounded ? (moving ? PH.accG : PH.decG) : (moving ? PH.accA : PH.decA);
   let dvx = v.x * PH.run - P.vx, dvz = v.z * PH.run - P.vz;
@@ -354,7 +367,7 @@ function physics(dt, control) {
     if (pen === 'x0') { nx = p.x0 - r; P.vx = 0; } else if (pen === 'x1') { nx = p.x1 + r; P.vx = 0; }
     else if (pen === 'z0') { nz = p.zMin - r; P.vz = 0; } else { nz = p.zMax + r; P.vz = 0; }
   }
-  nx = Math.min(Math.max(nx, -PATH_HALF + r), PATH_HALF - r);
+  nx = SIDE() ? 0 : Math.min(Math.max(nx, -PATH_HALF + r), PATH_HALF - r);
   nz = Math.min(nz, L.start.z + 3);
   P.x = nx; P.z = Math.max(nz, -L.dMax);
   // down: land on tops (steps, lifts and bouncers only from above)
@@ -385,13 +398,13 @@ function touchItems() {
   for (const it of L.items) {
     if (it.state !== 'idle') continue;
     if (it.kind === 'coin') {
-      if (Math.hypot(it.x - P.x, it.z - P.z) < PH.hw + 0.35 && it.y > P.y - 0.25 && it.y < P.y + PH.h + 0.25) {
+      if (Math.hypot(SIDE() ? 0 : it.x - P.x, it.z - P.z) < PH.hw + 0.35 && it.y > P.y - 0.25 && it.y < P.y + PH.h + 0.25) {
         takeCoin(it); G.coins++; drawCoins(true); A.sfx.coin();
       }
       continue;
     }
     const cy = it.root.position.y;
-    const dx = Math.max(Math.hypot(it.x - P.x, it.z - P.z) - PH.hw, 0);
+    const dx = Math.max(Math.hypot(SIDE() ? 0 : it.x - P.x, it.z - P.z) - PH.hw, 0);
     const dy = cy < P.y ? P.y - cy : cy > P.y + PH.h ? cy - (P.y + PH.h) : 0;
     const reach = it.m ? 0.78 : 0.5;            // forgiving: easy to take the /m/ ones, easy to jump over the others
     if (dx * dx + dy * dy < reach * reach) {
@@ -416,7 +429,7 @@ function touchItems() {
     }
     // say the word as the runner comes up to it (listen, then decide)
     const ahead = P.z - it.z;
-    if (ahead > -0.5 && ahead < 6.5 && Math.abs(it.x - P.x) < 3.2 && Math.abs(cy - (P.y + 1)) < 4.5 && G.t - it.spoken > 9 && !A.voiceBusy()) {
+    if (ahead > -0.5 && ahead < 6.5 && (SIDE() || Math.abs(it.x - P.x) < 3.2) && Math.abs(cy - (P.y + 1)) < 4.5 && G.t - it.spoken > 9 && !A.voiceBusy()) {
       it.spoken = G.t; it.pulse = 0.5; A.say('w:' + it.word);
     }
   }
@@ -427,7 +440,7 @@ function idleHelp() {
   if (G.auto || qs.has('nohint')) return;
   if (G.t - (G.lastInput ?? 0) > 8 && G.t - (G.lastHelp ?? -99) > 15 && !A.voiceBusy() && Math.hypot(P.vx, P.vz) < 0.3) {
     G.lastHelp = G.t; G.helping = true;
-    pointHand('joy'); A.say('t:demo1');
+    pointHand(SIDE() ? 'bRight' : 'joy'); A.say('t:demo1');
     setTimeout(() => { if (G.helping) { G.helping = false; pointHand(null); } }, 3500);
   }
 }
@@ -445,7 +458,7 @@ function updateGate(dt) {
   g.U.uOpen.value = Math.max(g.glow, g.open); g.U.uT.value = G.t;
   g.starM.emissiveIntensity = 0.15 + 0.85 * Math.max(g.glow, g.open);
   g.star.rotation.y += dt * (0.6 + 1.8 * Math.max(g.glow, g.open));
-  const near = Math.abs(P.x - g.x) < 2.2 && Math.abs(P.z - (g.z + 1.2)) < 1.6 && P.grounded && P.ground && Math.abs(P.ground.top - g.top) < 0.01;
+  const near = (SIDE() ? Math.abs(P.z - g.z) < 1.4 : Math.abs(P.x - g.x) < 2.2 && Math.abs(P.z - (g.z + 1.2)) < 1.6) && P.grounded && P.ground && Math.abs(P.ground.top - g.top) < 0.01;
   const hint = $('lockHint');
   if (G.phase === 'play' && near && !G.auto) {
     if (G.ready) { sayTurn(); }
@@ -471,11 +484,12 @@ function openAndEnter() {
 /** into the gate (user: "문이 열렸을때 자연스럽게 뛰어서 들어가게"): turn toward the portal while starting to run, run up to
  *  just in front of it, jump, dive through the swirl (Tata shrinks into it, sparkles, a flash) → the result card */
 function enterGate(dt) {
-  const g = G.lv.gate, PZ = g.z;                               // the portal's plane (it faces the camera)
+  const g = G.lv.gate, n = { x: g.nx, z: g.nz };               // the portal's facing (toward the camera)
   const st = G.ent ||= { stage: 'run', t: 0, y: 0, yaw: runner.yaw, spd: 0, burst: false };
   st.t += dt; G.phaseT += dt;
   let sp = 0, vy = 0, grounded = true, scale = 1;
-  const tx = g.x, tz = PZ + 1.1;                               // the take-off spot
+  const tx = g.x + n.x * 1.1, tz = g.z + n.z * 1.1;           // the take-off spot in front of the swirl
+  const depth = () => (P.x - g.x) * n.x + (P.z - g.z) * n.z;   // how far in front of the portal plane
   if (st.stage === 'run') {
     const dx = tx - P.x, dz = tz - P.z, d = Math.hypot(dx, dz);
     st.spd = Math.min(5.2, st.spd + 14 * dt);
@@ -483,17 +497,17 @@ function enterGate(dt) {
     if (d > 1e-4) { P.x += (dx / d) * step; P.z += (dz / d) * step; st.yaw = Math.atan2(dx, dz); }
     sp = st.spd;
     if (d < 0.04) {
-      st.stage = 'jump'; st.t = 0; st.z0 = P.z; st.yaw = Math.PI;
+      st.stage = 'jump'; st.t = 0; st.x0 = P.x; st.z0 = P.z; st.yaw = Math.atan2(-n.x, -n.z);   // turn to the portal
       runner.jumped(); A.sfx.jump(); A.sfx.portal();
-      E.puff(P.x, P.y + 0.05, P.z + 0.2, 0, 0.6, 0.6);
+      E.puff(P.x, P.y + 0.05, P.z, 0, 0.6, 0.6);
     }
   } else if (st.stage === 'jump') {
-    const T = 0.7, u = Math.min(1, st.t / T);
+    const T = 0.7, u = Math.min(1, st.t / T), k = E.smooth(0, 1, u);
     st.y = 4 * 1.35 * u * (1 - u) + 0.5 * u;
-    P.z = st.z0 + (PZ - 0.9 - st.z0) * E.smooth(0, 1, u);
+    P.x = st.x0 + (g.x - n.x * 0.9 - st.x0) * k; P.z = st.z0 + (g.z - n.z * 0.9 - st.z0) * k;
     vy = 9 * (1 - 2 * u); grounded = false; sp = 3;
-    scale = 1 - E.smooth(PZ + 0.25, PZ - 0.85, P.z) * 0.999;
-    if (!st.burst && P.z < PZ + 0.1) { st.burst = true; E.burst(new THREE.Vector3(g.x, g.top + 2.0, PZ + 0.2), 0xffd6ff, 1.1); }
+    scale = 1 - E.smooth(0.25, -0.85, depth()) * 0.999;
+    if (!st.burst && depth() < 0.1) { st.burst = true; E.burst(new THREE.Vector3(g.x + n.x * 0.2, g.top + 2.0, g.z + n.z * 0.2), 0xffd6ff, 1.1); }
     g.U.uFlash.value = E.smooth(0.35, 1, u);
     $('flash').style.opacity = String(0.85 * E.smooth(0.7, 1, u));
     if (u >= 1) { st.stage = 'gone'; st.t = 0; }
@@ -517,7 +531,7 @@ async function sayTurn() {
   if (G.phase !== 'play') return;
   G.phase = 'say';
   const tok = ++G.sayTok, alive = () => tok === G.sayTok && G.screen === 'play';
-  P.vx = 0; P.vz = 0; P.yaw = Math.PI;
+  P.vx = 0; P.vz = 0; P.yaw = Math.atan2(-G.lv.gate.nx, -G.lv.gate.nz);
   for (const k of Object.keys(keys)) press(k, false);
   if (!canSpeak()) { openAndEnter(); return; }               // can't judge: straight through, no say-it coins (rule 5)
   app.classList.add('saying');
@@ -620,7 +634,7 @@ function updateCamera(dt) {
   if (P.y > G.camY + 3.2) G.camY = P.y - 3.2;
   if (G.phase === 'play' && P.y < G.camY - 3 && P.y > L.minTop - 1) G.camY = Math.max(P.y + 1, L.minTop);
   const asp = innerWidth / innerHeight, far = Math.min(1.45, Math.max(1, 1.5 / asp));
-  E.camera.fov = G.screen === 'play' || G.screen === 'clear' || G.screen === 'over' ? 50 : 34; E.camera.updateProjectionMatrix();
+  E.camera.fov = !SIDE() && (G.screen === 'play' || G.screen === 'clear' || G.screen === 'over') ? 50 : 34; E.camera.updateProjectionMatrix();
   if (G.screen === 'shop') {
     // dress room: Tata alone in the window on the left, filling it (the view is shifted so she is at its centre)
     const w = $('dWin').getBoundingClientRect(), fit = Math.max(1, (innerHeight * 0.62) / Math.max(1, w.height));
@@ -632,6 +646,17 @@ function updateCamera(dt) {
     E.camera.position.set(P.x + 1.2, P.y + 2.2, P.z + 9.5 * far);
     E.camera.lookAt(P.x + 0.4, P.y + 1.9, P.z - 2);
     cam.snap = true;
+  } else if (SIDE()) {
+    // from the side, a little behind, the course running to the right; look ahead the way Tata runs
+    const fwd = P.yaw > Math.PI / 2 ? 1 : -1;                  // 1 = along the course (-z)
+    cam.ahead = (cam.ahead ?? 2.2) + (fwd * 2.2 - (cam.ahead ?? 2.2)) * E.damp(1.6, dt);
+    const cz = Math.min(L.start.z - 4.5, Math.max(-L.dMax + 6.5, P.z - cam.ahead));
+    const want = new THREE.Vector3(17 * far, G.camY + 4.0, cz + 1.0), look = new THREE.Vector3(0, G.camY + 1.7, cz - 0.5);
+    if (G.screen === 'clear') { want.set(P.x + 6.5, P.y + 2.4, P.z); look.set(P.x, P.y + 1.3, P.z); }
+    if (cam.snap) { cam.pos.copy(want); cam.look.copy(look); cam.snap = false; }
+    const k = E.damp(G.screen === 'clear' ? 3 : 5, dt);
+    cam.pos.lerp(want, k); cam.look.lerp(look, k);
+    E.camera.position.copy(cam.pos); E.camera.lookAt(cam.look);
   } else {
     const want = new THREE.Vector3(P.x * 0.55, G.camY + 4.1, P.z + 7.6 * far);
     const look = new THREE.Vector3(P.x * 0.75, G.camY + 1.3, P.z - 7);
@@ -687,7 +712,7 @@ function tick(dt) {
     const mode = P.hurt > 0 ? 'hurt' : G.screen === 'clear' || G.cheerT > 0 ? 'cheer'
       : G.phase === 'say' ? 'idle' : still ? (G.screen === 'title' || G.screen === 'shop' ? 'title' : 'idle') : 'play';
     if (G.screen === 'shop' && !(G.cheerT > 0)) runner.update(dt, { vx: 0, vy: 0, grounded: true, facing: 1, max: PH.run, mode: 'steer', yaw: G.shopYaw });
-    else runner.update(dt, { vx: sp, vy: P.vy, grounded: P.grounded, facing: 1, max: PH.run, mode, yaw: P.yaw });
+    else runner.update(dt, { vx: sp, vy: P.vy, grounded: P.grounded, facing: 1, max: PH.run, mode, yaw: P.yaw, idleYaw: SIDE() ? Math.PI / 2 - 0.25 : 0.35 });
   }
   if (playing || G.screen === 'clear') updateGate(dt);
   updateItems(L.items, dt, G.t);
@@ -727,6 +752,15 @@ const keyBtn = $('btnKey');
 const showApi = () => { keyBtn.dataset.api = window.PhonicsAPI ? PhonicsAPI.status() : 'off'; };
 keyBtn.addEventListener('click', async () => { A.unlock(); A.sfx.tap(); if (window.PhonicsAPI) { await PhonicsAPI.keyDialog(); showApi(); } });
 if (window.PhonicsAPI) { PhonicsAPI.init().then(showApi); addEventListener('phonicsapi:status', showApi); }
+
+// the view toggle (title only): two picture buttons, behind / side
+function showView() { app.dataset.view = VIEW; for (const b of document.querySelectorAll('#viewTog button')) b.classList.toggle('on', b.dataset.v === VIEW); }
+for (const b of document.querySelectorAll('#viewTog button')) b.addEventListener('click', () => {
+  if (b.dataset.v === VIEW) return;
+  A.unlock(); A.sfx.tap(); VIEW = b.dataset.v; try { localStorage.setItem(VIEW_KEY, VIEW); } catch (e) { /* ignore */ }
+  showView(); load(G.idx);
+});
+showView();
 
 // dress room (Phonics Match's): coins → things for Tata to wear (a reward has to be spendable). One item per body part;
 // tap an owned one to wear / take it off. Tata stands in the window: drag to turn her all the way round (360°).

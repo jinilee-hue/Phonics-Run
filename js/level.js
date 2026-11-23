@@ -90,13 +90,13 @@ export const LEVELS = [
   {
     id: 5, theme: 'space', name: 'Space', gravity: 0.72,
     parts: [
-      ['stage', 0, 4.4], ['g', 4.2, 22, 0], ['step', 26.5, 30, 0.8, L_, 2.8], ['step', 33.5, 37, 1.6, R_, 2.8], ['g', 41, 56, 1.6],
+      ['stage', 0, 4.4], ['g', 4.2, 22, 0], ['step', 25.5, 31, 0.8, L_, 2.8], ['step', 34, 39.5, 1.6, R_, 2.8], ['g', 41, 56, 1.6],   // (long steps: the low gravity carries far)
       ['lift', 62, 1.6, 'z', 2, 4.4, 3.2, 3.2], ['g', 68, 82, 2.2], ['lift', 87.5, 2.2, 'x', 1.4, 4, 3, 3],
       ['g', 92.5, 106, 2.6], ['end', 110, 132, 2.6],
     ],
     items: [
       ['row', 8, 12, 0, 1.0, 4], ['c', 'match', 15, R_], ['c', 'gate', 19, L_],
-      ['arc', 22.5, 26.5, L_, 1.2, 2.4, 3], ['arc', 30.5, 33.5, 0, 2, 2, 3],
+      ['arc', 22.5, 25.5, L_, 1.2, 2.4, 3], ['arc', 31.3, 34, 0, 2, 2, 3],
       ['c', 'mice', 47, L_], ['c', 'doll', 51, R_],
       ['arc', 56.5, 67.5, 0, 2.6, 3.2, 6],
       ['c', 'mouth', 76, 0], ['row', 70, 80, R_, 3.2, 5],
@@ -105,8 +105,12 @@ export const LEVELS = [
   },
 ];
 
-/** build a level's world; returns platforms, items, gate and bounds (z = -d) */
-export function buildLevel(L) {
+/** build a level's world; returns platforms, items, gate and bounds (z = -d).
+ *  side = the side-view version: one lane (cards, coins and steps on the middle line — traps have to be jumped),
+ *  sideways lifts move up and down instead, scenery only on the far side, the gate turned to face the camera */
+export function buildLevel(L, side = false) {
+  W.setSide(side);
+  const X = x => (side ? 0 : x);
   E.applyTheme(L.theme);
   W.snowfall.visible = !!E.TH.snowfall;
   E.setSeed(100 + L.id * 7);
@@ -130,46 +134,68 @@ export function buildLevel(L) {
       plats.push(box(d0, d1, top, -PH, PH, { solid: true, bottom: top - 7 }));
       if (kind === 'end') {
         const gd = d1 - 6;
-        const G = E.gate(root); G.group.position.set(0, top, -gd);
-        gate = { x: 0, z: -gd, top, ...G, open: 0 };
+        const G = E.gate(root);
+        // the portal faces where the camera is: +z behind Tata (back view), +x across the course (side view)
+        const n = side ? { x: 1, z: 0 } : { x: 0, z: 1 };
+        const gx = side ? -1.3 : 0;
+        G.group.position.set(gx, top, -gd); if (side) G.group.rotation.y = Math.PI / 2;
+        gate = { x: gx, z: -gd, nx: n.x, nz: n.z, top, ...G, open: 0 };
         dMax = d1 - 0.6;
       }
       minTop = Math.min(minTop, top);
     } else if (kind === 'step') {
-      const [, d0, d1, top, x = 0, w = 3] = p;
+      const [, d0, d1, top, x0 = 0, w = 3] = p, x = X(x0);
       const g = W.step(root, w, d1 - d0, th); g.position.set(x, top, -(d0 + d1) / 2);
       plats.push(box(d0, d1, top, x - w / 2, x + w / 2, { oneWay: true }));
       minTop = Math.min(minTop, top);
     } else if (kind === 'lift') {
-      const [, dc, top, axis, amp, period, w, len] = p;
+      const [, dc, top, axis0, amp0, period, w, len] = p;
+      const axis = side && axis0 === 'x' ? 'y' : axis0, amp = side && axis0 === 'x' ? Math.min(amp0, 1.2) : amp0;   // (sideways = into the screen in side view)
       const g = W.lift(root, w, len, th); g.position.set(0, top, -dc);
       plats.push({ x0: -w / 2, x1: w / 2, zMin: -dc - len / 2, zMax: -dc + len / 2, top, oneWay: true, moving: true, lift: { dc, top, axis, amp, period, w, len, obj: g }, dx: 0, dy: 0, dz: 0 });
       minTop = Math.min(minTop, top - (axis === 'y' ? amp : 0));
     } else if (kind === 'bounce') {
-      const [, d, x, gtop] = p;
+      const [, d, x0, gtop] = p, x = X(x0);
       const g = W.bouncer(root, th); g.position.set(x, gtop + 0.5, -d);
       plats.push({ x0: x - 0.85, x1: x + 0.85, zMin: -d - 0.85, zMax: -d + 0.85, top: gtop + 0.5, oneWay: true, bounce: { obj: g, t: 9 } });
     }
   }
 
+  // side view: one lane, so a trap has to be jumped — one too close before a gap would send Tata into it. Such a trap
+  // moves back to ≥ 7 before the edge (and ≥ 2.5 from any other card); in the back view it is passed on the side.
+  let itemsIn = L.items;
+  if (side) {
+    const grounds = L.parts.filter(p => p[0] === 'g' || p[0] === 'end' || p[0] === 'step').map(p => [p[1], p[2]]);
+    const cards = L.items.filter(it => it[0] === 'c');
+    itemsIn = L.items.map(it => {
+      if (it[0] !== 'c' || isM(it[1])) return it;
+      const gr = grounds.find(([d0, d1]) => it[2] >= d0 && it[2] <= d1);
+      if (!gr || gr[1] - it[2] >= 7) return it;
+      for (let d = gr[1] - 7; d >= gr[0] + 2; d -= 0.5) {
+        if (cards.every(c => c === it || Math.abs(c[2] - d) >= 2.5)) { const m = [...it]; m[2] = d; return m; }
+      }
+      return null;                                               // no room on that ground: left out in the side view
+    }).filter(Boolean);
+  }
   const topAt = (x, z) => { let best = 0; for (const p of plats) if (x >= p.x0 - 0.3 && x <= p.x1 + 0.3 && z >= p.zMin - 0.3 && z <= p.zMax + 0.3) best = Math.max(best, p.top); return best; };
-  for (const it of L.items) {
-    if (it[0] === 'c') { const [, w, d, x, y] = it; items.push(makeCard(root, w, isM(w), x, y ?? topAt(x, -d) + 1.15, -d)); }
+  for (const it of itemsIn) {
+    if (it[0] === 'c') { const [, w, d, x0, y] = it, x = X(x0); items.push(makeCard(root, w, isM(w), x, y ?? topAt(x, -d) + 1.15, -d)); }
     else if (it[0] === 'row') {
-      const [, d0, d1, x, y, n] = it;
+      const [, d0, d1, x0, y, n] = it, x = X(x0);
       for (let i = 0; i < n; i++) items.push(makeCoin(root, x, y, -(d0 + (d1 - d0) * (n > 1 ? i / (n - 1) : 0.5))));
     } else if (it[0] === 'arc') {
-      const [, d0, d1, x, y0, rise, n] = it;
+      const [, d0, d1, x0, y0, rise, n] = it, x = X(x0);
       for (let i = 0; i < n; i++) { const t = n > 1 ? i / (n - 1) : 0.5; items.push(makeCoin(root, x, y0 + rise * 4 * t * (1 - t), -(d0 + (d1 - d0) * t))); }
     }
   }
 
+  if (side) for (const it of items) if (it.kind === 'card') it.face = Math.PI / 2;
   W.backdrop(root, th, dMax);
   W.below(root, th, dMax);
 
   const words = items.filter(i => i.kind === 'card' && i.m).map(i => i.word);
   return {
-    L, root, plats, items, gate, dMax, minTop, words, gravity: L.gravity || 1,
+    L, root, plats, items, gate, dMax, minTop, words, gravity: L.gravity || 1, side,
     start: { x: 0, y: 0, z: 1.2 },
     dispose() { E.scene.remove(root); root.traverse(o => { if (o.geometry) o.geometry.dispose(); }); },
   };

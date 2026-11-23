@@ -159,8 +159,8 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .stars svg.on { animation: starIn .55s cubic-bezier(.2, 1.6, .4, 1) both; }
 .stars svg:nth-child(2).on { animation-delay: .25s; } .stars svg:nth-child(3).on { animation-delay: .5s; }
 @keyframes starIn { 0% { transform: scale(0) rotate(-120deg); } 100% { transform: scale(1) rotate(0); } }
-.got { display: flex; gap: calc(1 * var(--u)); flex-wrap: wrap; justify-content: center; max-width: calc(66 * var(--u)); }
-.got img { width: calc(8.4 * var(--u)); height: calc(8.4 * var(--u)); border-radius: calc(1.6 * var(--u)); border: calc(.35 * var(--u)) solid var(--gold); background: #fff; object-fit: cover; }
+#gotList { display: flex; gap: calc(1 * var(--u)); flex-wrap: wrap; justify-content: center; max-width: calc(66 * var(--u)); }
+#gotList img { width: calc(8.4 * var(--u)); height: calc(8.4 * var(--u)); border-radius: calc(1.6 * var(--u)); border: calc(.35 * var(--u)) solid var(--gold); background: #fff; object-fit: cover; }
 .coinline { display: flex; align-items: center; gap: calc(1 * var(--u)); }
 .btns { display: flex; gap: calc(3 * var(--u)); margin-top: calc(1 * var(--u)); }
 .rbtn { width: calc(13 * var(--u)); height: calc(13 * var(--u)); border-radius: 50%; display: grid; place-items: center; color: #fff;
@@ -205,7 +205,7 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .pop.minus { font-size: calc(7 * var(--u)); color: #ffd6e0; -webkit-text-stroke-color: #b8243f; }
 .pop.plus { font-size: calc(7 * var(--u)); color: #fff3a8; -webkit-text-stroke-color: #c97a00; }
 .slot.said { border-color: #37d39b; box-shadow: 0 0 0 calc(.35 * var(--u)) #37d39b; }
-.got img.said { border-color: #37d39b; }
+#gotList img.said { border-color: #37d39b; }
 
 /* ---------------------------------------------------------------- the gate's say-it turn */
 #app.saying .pad, #app.saying .jbtn { opacity: 0; pointer-events: none; }
@@ -489,3 +489,35 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .slot { width: calc(5.6 * var(--u)); height: calc(5.6 * var(--u)); }
 .slot.got { transform: none; }
 .say-card { top: calc(20 * var(--u)); }
+
+/* two versions: the stick (back view) or ← → (side view) */
+#app[data-view="side"] .joy { display: none; }
+#app[data-view="back"] .pad { display: none; }
+#app.saying .pad { opacity: 0; pointer-events: none; }
+/* the view toggle under START: two picture buttons (user: visible choices, not words) */
+.view-tog { display: flex; gap: calc(1.4 * var(--u)); margin-top: 0; padding: calc(.8 * var(--u)); border-radius: 999px;
+  background: linear-gradient(rgba(255,255,255,.75), rgba(255,255,255,.5)); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: 0 calc(.6 * var(--u)) calc(1.4 * var(--u)) rgba(30,30,110,.22); }
+.view-tog button { width: calc(13 * var(--u)); height: calc(8.6 * var(--u)); border-radius: 999px; display: grid; place-items: center; background: #f1ecff;
+  box-shadow: inset 0 calc(-.5 * var(--u)) 0 #d6cbf6; transition: transform .1s; }
+.view-tog button svg { width: 78%; height: 78%; }
+.view-tog button.on { background: #fff; box-shadow: 0 0 0 calc(.55 * var(--u)) var(--violet), inset 0 calc(-.5 * var(--u)) 0 #d6cbf6; }
+.view-tog button:not(.on) svg { opacity: .55; filter: grayscale(.3); }
+.view-tog button:active { transform: scale(.95); }
+
+/* the collected-pictures row without its plate (user 2026-11-23: "카드 리스트를 싸고 있는 박스는 삭제하자"): the tiles stand on
+   their own with a soft shadow; the picture is shown whole inside its tile (no cropping) */
+.slots, .slots.done { background: none; box-shadow: none; padding: 0; gap: calc(1.2 * var(--u)); }
+.slots::before { content: none; }
+.slot { width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: calc(1.8 * var(--u));
+  background: rgba(255,255,255,.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 calc(.35 * var(--u)) rgba(255,255,255,.9), 0 calc(.6 * var(--u)) calc(1.2 * var(--u)) rgba(30,30,110,.22); }
+.slot::before { color: rgba(140,110,230,.55); text-shadow: none; }
+.slot img { inset: 10%; width: 80%; height: 80%; object-fit: contain; }
+.slot.got { background: #fff; box-shadow: 0 0 0 calc(.4 * var(--u)) #ffcf3a, 0 calc(.6 * var(--u)) calc(1.2 * var(--u)) rgba(120,70,0,.28); }
+.slot.said { box-shadow: 0 0 0 calc(.4 * var(--u)) #37d39b, 0 calc(.6 * var(--u)) calc(1.2 * var(--u)) rgba(0,90,60,.25); }
+
+/* hearts: only the ones left; a lost one breaks and fades out */
+.hearts img.gone { animation: heartGone .65s ease-in forwards; }
+@keyframes heartGone { 0% { transform: scale(1); } 25% { transform: scale(1.3) rotate(-12deg); filter: saturate(0) brightness(1.4); } 100% { transform: scale(.2) rotate(20deg) translateY(calc(3 * var(--u))); opacity: 0; } }
+#hearts:empty { display: none; }

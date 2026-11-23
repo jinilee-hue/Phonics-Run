@@ -12,6 +12,12 @@ import * as E from './env.js';
 const { V, rr, rnd, std, shade, canvasTex, blob, RoundedBoxGeometry } = E;
 
 export const PATH_W = 4.8, GROUND_W = 16;
+// side view (user 2026-11-23: "뒤모습 보이며 달리는거랑 옆으로 달리는거랑 두가지 버전"): the camera stands at +x looking across
+// the course, so scenery goes on the far side (-x) only — anything on the near side would stand in front of the lens
+export let SIDE = false;
+export function setSide(v) { SIDE = !!v; }
+const SIDES = () => (SIDE ? [-1] : [-1, 1]);
+const far = x => (SIDE ? -Math.abs(x) : x);
 const cache = {};
 const once = (k, f) => (cache[k] ||= f());
 const pick = a => a[(rnd() * a.length) | 0];
@@ -135,7 +141,7 @@ function rails(g, len, theme) {
 
 // ---------------------------------------------------------------- props beside the path (on the ground block)
 function sideProps(g, len, theme) {
-  for (const side of [-1, 1]) {
+  for (const side of SIDES()) {
     for (let z = -len / 2 + rr(1, 2.5); z < len / 2 - 1; z += rr(3.2, 5.2)) {
       const x = side * rr(PATH_W / 2 + 1.4, GROUND_W / 2 - 1.2);
       prop(g, x, z, theme, side);
@@ -352,7 +358,7 @@ function galaxy(parent, x, y, z, s, hue) {
 export function backdrop(parent, theme, dEnd) {
   const zs = []; for (let d = -10; d < dEnd + 30; d += rr(11, 16)) zs.push(-d);
   if (theme === 'forest') {
-    for (const z of zs) for (const side of [-1, 1]) {
+    for (const z of zs) for (const side of SIDES()) {
       const x = side * rr(13, 22);
       const hill = E3(rr(6, 9), rr(3, 5), rr(5, 7), std(pick([0x6bcb4c, 0x5cb945, 0x7ad65a]), 0.85), 24); hill.position.set(x * 1.3, -2.5, z); parent.add(hill);
       const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
@@ -360,9 +366,9 @@ export function backdrop(parent, theme, dEnd) {
       if (k < 0.35) E.tree(g, 0, 0, rr(1.6, 2.4)); else if (k < 0.6) mushroom(g, 0, 0, rr(1.6, 2.6)); else if (k < 0.8) pipe(g, 0, 0, rr(1.4, 2)); else E.tree(g, 0, 0, rr(1.3, 1.8));
       g.position.y = rr(-0.5, 0.5);
     }
-    waterfall(parent, 11, -1, -38); waterfall(parent, -12, -1, -84);
+    waterfall(parent, far(11), -1, -38); waterfall(parent, -12, -1, -84);
   } else if (theme === 'candy') {
-    for (const z of zs) for (const side of [-1, 1]) {
+    for (const z of zs) for (const side of SIDES()) {
       const x = side * rr(14, 24), k = rnd();
       if (k < 0.45) chocHill(parent, x * 1.2, z, rr(1, 1.6));
       else if (k < 0.7) gingerHouse(parent, x, z, rr(1.1, 1.5));
@@ -371,27 +377,27 @@ export function backdrop(parent, theme, dEnd) {
     }
     // the chocolate river beside the course
     const river = new THREE.Mesh(new THREE.PlaneGeometry(14, dEnd + 80), gloss(0x5a2e1a, { roughness: 0.18, clearcoat: 1 }));
-    river.rotation.x = -Math.PI / 2; river.position.set(16, -1.2, -dEnd / 2); river.name = 'river'; parent.add(river);
+    river.rotation.x = -Math.PI / 2; river.position.set(far(16), -1.2, -dEnd / 2); river.name = 'river'; parent.add(river);
   } else if (theme === 'snow') {
-    for (const z of zs) for (const side of [-1, 1]) {
+    for (const z of zs) for (const side of SIDES()) {
       const x = side * rr(14, 22), k = rnd(), g = new THREE.Group(); g.position.set(x, rr(-0.5, 1), z); parent.add(g);
       if (k < 0.35) cabin(g, 0, 0, rr(1.1, 1.4)); else if (k < 0.75) { pine(g, 0, 0, rr(1.8, 2.6)); pine(g, rr(-2, 2), rr(-2, 2), rr(1.4, 2)); } else snowman(g, 0, 0, rr(1.4, 1.8), side);
     }
-    for (let d = 20; d < dEnd + 80; d += rr(26, 40)) for (const side of [-1, 1]) mountain(parent, side * rr(35, 60), -d - 30, rr(14, 24));
+    for (let d = 20; d < dEnd + 80; d += rr(26, 40)) for (const side of [-1, 1]) mountain(parent, far(side * rr(35, 60)), -d - 30, rr(14, 24));
   } else if (theme === 'desert') {
-    for (const z of zs) for (const side of [-1, 1]) {
+    for (const z of zs) for (const side of SIDES()) {
       const x = side * rr(13, 22), k = rnd(), g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
       const dune = E3(rr(6, 10), rr(2, 3.5), rr(5, 8), std(0xf0c072, 0.95), 24); dune.position.set(x * 0.4, -1.5, 0); g.add(dune);
       if (k < 0.3) arch(g, 0, 0, rr(1.2, 1.6)); else if (k < 0.55) { palm(g, 0, 0, rr(1.4, 1.8)); palm(g, 1.5, 1, rr(1.1, 1.5)); } else if (k < 0.75) tent(g, 0, 0, rr(1.2, 1.6)); else cactus(g, 0, 0, rr(1.5, 2));
     }
-    for (let d = 25; d < dEnd + 80; d += rr(30, 45)) for (const side of [-1, 1]) pyramid(parent, side * rr(40, 65), -d - 30, rr(14, 22));
+    for (let d = 25; d < dEnd + 80; d += rr(30, 45)) for (const side of [-1, 1]) pyramid(parent, far(side * rr(40, 65)), -d - 30, rr(14, 22));
     oasis(parent, -13, -0.9, -60);
   } else {
     const cols = [['#e8a25e', '#c4743c', 0xf2d6a8], ['#8f7cff', '#6a54d8', null], ['#ff8fbf', '#d9609a', 0xffc8e0], ['#7fd0ff', '#4a9be0', null], ['#ffd36b', '#e8a02a', 0xfff0c0]];
     let k = 0;
-    for (let d = 10; d < dEnd + 40; d += rr(18, 28)) { const [a, b, ring] = cols[k++ % cols.length]; planet(parent, (k % 2 ? -1 : 1) * rr(24, 40), rr(6, 20), -d, rr(3, 7), a, b, ring); }
-    for (let d = 20; d < dEnd + 60; d += rr(30, 45)) galaxy(parent, rr(-50, 50), rr(18, 40), -d - 60, rr(30, 50), (d * 7) % 360);
-    for (const z of zs) for (const side of [-1, 1]) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.8, 2.2), 0), std(0x5e508a, 0.9, { flatShading: true })); r.position.set(side * rr(10, 24), rr(-3, 8), z); r.rotation.set(rr(0, 3), rr(0, 3), 0); r.userData.spin = rr(-0.3, 0.3); r.name = 'asteroid'; parent.add(r); }
+    for (let d = 10; d < dEnd + 40; d += rr(18, 28)) { const [a, b, ring] = cols[k++ % cols.length]; planet(parent, far((k % 2 ? -1 : 1) * rr(24, 40)), rr(6, 20), -d, rr(3, 7), a, b, ring); }
+    for (let d = 20; d < dEnd + 60; d += rr(30, 45)) galaxy(parent, SIDE ? rr(-70, -40) : rr(-50, 50), rr(18, 40), SIDE ? -d : -d - 60, rr(30, 50), (d * 7) % 360);
+    for (const z of zs) for (const side of SIDES()) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.8, 2.2), 0), std(0x5e508a, 0.9, { flatShading: true })); r.position.set(side * rr(10, 24), rr(-3, 8), z); r.rotation.set(rr(0, 3), rr(0, 3), 0); r.userData.spin = rr(-0.3, 0.3); r.name = 'asteroid'; parent.add(r); }
   }
 }
 function mountain(parent, x, z, s) {
@@ -424,7 +430,7 @@ function waterfall(parent, x, y, z) {
 // ---------------------------------------------------------------- a rainbow over the start (forest; the intro video's title)
 export function rainbow(parent, z) {
   const cols = [0xff5a5a, 0xff9a3c, 0xffe05a, 0x6fdc6a, 0x4fb3ff, 0x8a6cff];
-  const g = new THREE.Group(); g.position.set(0, -2, z);
+  const g = new THREE.Group(); g.position.set(SIDE ? -26 : 0, -2, z); if (SIDE) g.rotation.y = Math.PI / 2;
   cols.forEach((c, i) => { const r = new THREE.Mesh(new THREE.TorusGeometry(15 - i * 0.9, 0.48, 10, 80, Math.PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85, fog: false })); g.add(r); });
   parent.add(g); return g;
 }
@@ -448,7 +454,7 @@ function clouds(parent, dEnd, sea) {
     puffs.push(new THREE.Matrix4().compose(V(x, y + s * 0.05, z), new THREE.Quaternion(), V(s * 1.45, s * 0.38, s * 0.62)));
   };
   if (sea) for (let d = -30; d < dEnd + 60; d += rr(6, 10)) for (let x = -70; x < 70; x += rr(14, 22)) cloud(x + rr(-4, 4), rr(-19, -14), -d, rr(5, 9), 5);
-  else for (let d = -20; d < dEnd + 80; d += rr(14, 22)) for (const side of [-1, 1]) cloud(side * rr(24, 60), rr(14, 32), -d - rr(0, 30), rr(4, 8));
+  else for (let d = -20; d < dEnd + 80; d += rr(14, 22)) for (const side of [-1, 1]) cloud(far(side * rr(24, 60)), rr(14, 32), -d - rr(0, 30), rr(4, 8));
   const im = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshStandardMaterial({ color: E.TH.cloud[0], roughness: 1, emissive: E.TH.cloud[1], emissiveIntensity: E.TH.cloud[2] }), puffs.length);
   puffs.forEach((m, i) => im.setMatrixAt(i, m)); im.instanceMatrix.needsUpdate = true; im.frustumCulled = false;
   parent.add(im);

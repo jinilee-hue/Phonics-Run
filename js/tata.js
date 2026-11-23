@@ -442,7 +442,7 @@ export class Tata {
 
     if (st.facing) this.facing = st.facing;
     let wantYaw = st.yaw ?? this.facing * (Math.PI / 2 - 0.5);   // the run direction (yaw 0 = facing the camera)
-    if (st.mode === 'idle') { this.idleT += dt; if (this.idleT > 1.4) wantYaw = 0.35; }   // standing a while: looks round at us
+    if (st.mode === 'idle') { this.idleT += dt; if (this.idleT > 1.4) wantYaw = st.idleYaw ?? 0.35; }   // standing a while: looks round at us
     else if (st.mode === 'title') { this.idleT += dt; wantYaw = 0.28; }
     else this.idleT = 0;
     if (st.mode === 'enter') wantYaw = Math.PI;
