@@ -550,3 +550,82 @@ export function updateWorld(dt, T, root, camPos) {
     else { for (const p of o.children) { p.position.y = (p.position.y + dt * 0.4) % 1.2; p.material.opacity = 0.8 * (1 - p.position.y / 1.2); } }
   }
 }
+
+// ---------------------------------------------------------------- the start pad, one per world (user 2026-11-23: "맵 모드에 맞게
+// 출발 지점도 디자인 같은 무드로"): forest = a grassy ring with a log rim and a checkered start strip, candy = a round layer
+// cake with frosting and a candy-cane rim, snow = an ice rink with a rim of snowballs, desert = a sandstone plaza with a
+// sun mosaic and a stone-block rim, space = the neon pad. Local y = 0 is the top; arrows on top point down the course.
+function padTex(theme) {
+  return once('pad' + theme, () => canvasTex(1024, 1024, g => {
+    const S = 1024, c = S / 2;
+    const ring = (r, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.arc(c, c, r, 0, Math.PI * 2); g.stroke(); };
+    const arrows = (col, y0) => { g.fillStyle = col; for (let i = 0; i < 2; i++) { const y = y0 - i * 60; g.beginPath(); g.moveTo(c - 70, y + 40); g.lineTo(c, y - 20); g.lineTo(c + 70, y + 40); g.lineTo(c + 70, y + 80); g.lineTo(c, y + 20); g.lineTo(c - 70, y + 80); g.closePath(); g.fill(); } };
+    if (theme === 'forest') {
+      const gr = g.createRadialGradient(c, c, 40, c, c, c); gr.addColorStop(0, '#8fdc63'); gr.addColorStop(1, '#5fbd45');
+      g.fillStyle = gr; g.fillRect(0, 0, S, S);
+      for (let i = 0; i < 900; i++) { g.strokeStyle = `rgba(40,110,30,${0.15 + Math.random() * 0.2})`; g.lineWidth = 3; const x = Math.random() * S, y = Math.random() * S; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.random() * 6 - 3, y - 10 - Math.random() * 8); g.stroke(); }
+      ring(c * 0.62, 'rgba(255,255,255,.5)', 14);
+      const cols = ['#ff7fae', '#ffffff', '#ffd447', '#b79bff'];
+      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2, r = c * 0.78; g.fillStyle = cols[i % 4]; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 12, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffe066'; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 4, 0, Math.PI * 2); g.fill(); }
+      for (let y = 0; y < 3; y++) for (let x = 0; x < 10; x++) { g.fillStyle = (x + y) % 2 ? '#2b2b3a' : '#f6f6f6'; g.fillRect(c - 250 + x * 50, 60 + y * 50, 50, 50); }   // the start strip (far side)
+      arrows('rgba(255,255,255,.85)', c + 40);
+    } else if (theme === 'candy') {
+      g.fillStyle = '#ffb5d6'; g.fillRect(0, 0, S, S);
+      for (let i = 0; i < 26; i++) { const a = i / 26 * Math.PI * 2; g.fillStyle = '#fff3f8'; g.beginPath(); g.arc(c + Math.cos(a) * c * 0.86, c + Math.sin(a) * c * 0.86, 46, 0, Math.PI * 2); g.fill(); }   // whipped-cream dollops
+      ring(c * 0.55, '#ff8fbf', 18); ring(c * 0.3, '#fff3f8', 30);
+      const sp = ['#ff7fb0', '#7fd8ff', '#ffe066', '#9cf0a8', '#c59bff', '#ffffff'];
+      for (let i = 0; i < 260; i++) { const a = Math.random() * Math.PI * 2, r = Math.random() * c * 0.78; g.save(); g.translate(c + Math.cos(a) * r, c + Math.sin(a) * r); g.rotate(Math.random() * 3); g.fillStyle = sp[i % sp.length]; g.beginPath(); g.roundRect(-11, -4, 22, 8, 4); g.fill(); g.restore(); }
+      arrows('#ff5f9e', c + 40);
+    } else if (theme === 'snow') {
+      const gr = g.createRadialGradient(c, c, 30, c, c, c); gr.addColorStop(0, '#e8f6ff'); gr.addColorStop(0.75, '#bfe3fb'); gr.addColorStop(1, '#a9d6f6');
+      g.fillStyle = gr; g.fillRect(0, 0, S, S);
+      g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 4;
+      for (let i = 0; i < 30; i++) { g.beginPath(); const a = Math.random() * 6.28; g.arc(c + Math.cos(a) * 200, c + Math.sin(a) * 200, 120 + Math.random() * 200, a, a + 0.8 + Math.random()); g.stroke(); }   // skate marks
+      const flake = (x, y, r) => { g.save(); g.translate(x, y); g.strokeStyle = '#ffffff'; g.lineWidth = r / 6; g.lineCap = 'round'; for (let k = 0; k < 6; k++) { g.rotate(Math.PI / 3); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, r); g.moveTo(0, r * 0.55); g.lineTo(r * 0.25, r * 0.75); g.moveTo(0, r * 0.55); g.lineTo(-r * 0.25, r * 0.75); g.stroke(); } g.restore(); };
+      flake(c, c, 120); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; flake(c + Math.cos(a) * c * 0.7, c + Math.sin(a) * c * 0.7, 40); }
+      ring(c * 0.5, 'rgba(110,190,240,.55)', 10);
+      arrows('rgba(80,160,230,.75)', c - 170);
+    } else {                                                                     // desert
+      g.fillStyle = '#e8bf82'; g.fillRect(0, 0, S, S);
+      for (let ri = 0; ri < 7; ri++) {                                           // stone tiles in rings
+        const r0 = 70 + ri * 62, n = 8 + ri * 7;
+        for (let k = 0; k < n; k++) { const a0 = k / n * Math.PI * 2, a1 = (k + 1) / n * Math.PI * 2 - 0.02;
+          g.fillStyle = ['#f0cf96', '#e2b678', '#f5d9a6'][(k + ri) % 3]; g.beginPath(); g.arc(c, c, r0 + 56, a0, a1); g.arc(c, c, r0, a1, a0, true); g.closePath(); g.fill(); }
+      }
+      g.fillStyle = '#f2a93b'; g.beginPath(); g.arc(c, c, 60, 0, Math.PI * 2); g.fill();          // the sun in the middle
+      g.fillStyle = '#ffd36b'; for (let k = 0; k < 12; k++) { g.save(); g.translate(c, c); g.rotate(k / 12 * Math.PI * 2); g.beginPath(); g.moveTo(-18, -70); g.lineTo(0, -120); g.lineTo(18, -70); g.fill(); g.restore(); }
+      arrows('#c77a2e', c - 190);
+    }
+  }));
+}
+export function startPad(parent, R, theme) {
+  if (theme === 'space') return E.stage(parent, R);
+  const g = new THREE.Group();
+  const side = { forest: 0x8a5a30, candy: 0x6c3a20, snow: 0x8fc8f0, desert: 0xc68650 }[theme];
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(R, R * 0.94, 1.5, 72), std(side, 0.8)); body.position.y = -0.76;
+  const top = new THREE.Mesh(new THREE.CircleGeometry(R - 0.05, 72), new THREE.MeshStandardMaterial({ map: padTex(theme), roughness: theme === 'snow' ? 0.25 : 0.7 }));
+  top.rotation.x = -Math.PI / 2; top.position.y = 0.004;
+  g.add(shade(body, false, true), shade(top, false, true));
+  if (theme === 'candy') {                                                       // a cake: a cream layer, frosting drips, a candy-cane rim
+    const cream = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.985, R * 0.97, 0.18, 72), std(0xf6e6d0, 0.6)); cream.position.y = -0.7; g.add(cream);
+    const ice = gloss(0xffb5d6);
+    for (let i = 0; i < 30; i++) { const a = i / 30 * Math.PI * 2; const d = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, rr(0.15, 0.45), 4, 8), ice); d.position.set(Math.cos(a) * (R + 0.02), -0.28 - rr(0, 0.12), Math.sin(a) * (R + 0.02)); g.add(d); }
+    const t = stripeTex('#ffffff', '#ff3b4e', 4).clone(); t.needsUpdate = true; t.repeat.set(40, 1);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.24, 14, 120), new THREE.MeshPhysicalMaterial({ map: t, roughness: 0.25, clearcoat: 1 })); rim.rotation.x = -Math.PI / 2; rim.position.y = 0.06; g.add(rim);
+  } else if (theme === 'forest') {                                               // a log ring with grass tufts
+    const logT = once('bark', () => { const t = canvasTex(256, 32, c => { c.fillStyle = '#8a5a30'; c.fillRect(0, 0, 256, 32); for (let i = 0; i < 60; i++) { c.fillStyle = `rgba(60,30,10,${Math.random() * 0.4})`; c.fillRect(Math.random() * 256, Math.random() * 32, 10 + Math.random() * 20, 2); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(30, 1); return t; });
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.3, 14, 120), new THREE.MeshStandardMaterial({ map: logT, roughness: 0.85 })); rim.rotation.x = -Math.PI / 2; rim.position.y = 0.08; g.add(rim);
+    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; const b = E3(0.28, 0.2, 0.28, std(0x5cb945, 0.8), 10); b.position.set(Math.cos(a) * (R + 0.15), 0.25, Math.sin(a) * (R + 0.15)); g.add(b); }
+  } else if (theme === 'snow') {                                                 // snowballs round the rink
+    const snow = std(0xffffff, 0.85);
+    for (let i = 0; i < 36; i++) { const a = i / 36 * Math.PI * 2; const b = E3(rr(0.32, 0.42), rr(0.26, 0.34), rr(0.32, 0.42), snow, 14); b.position.set(Math.cos(a) * R, 0.1, Math.sin(a) * R); g.add(b); }
+    const ice = new THREE.MeshPhysicalMaterial({ color: 0xcfeaff, roughness: 0.15, clearcoat: 1, transparent: true, opacity: 0.9 });
+    for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2, L = rr(0.4, 1.0); const c = new THREE.Mesh(new THREE.ConeGeometry(0.1, L, 8), ice); c.rotation.x = Math.PI; c.position.set(Math.cos(a) * R * 0.96, -1.5 - L / 2, Math.sin(a) * R * 0.96); g.add(c); }
+  } else {                                                                       // sandstone blocks round the plaza, two little palms
+    const st = std(0xd59a5e, 0.85);
+    for (let i = 0; i < 28; i++) { const a = i / 28 * Math.PI * 2; const b = new THREE.Mesh(new RoundedBoxGeometry(0.75, 0.42, 0.5, 2, 0.1), st); b.position.set(Math.cos(a) * R, 0.15, Math.sin(a) * R); b.rotation.y = -a + Math.PI / 2; g.add(b); }
+    for (const [x, z] of [[-R * 0.72, R * 0.45], [R * 0.75, R * 0.4]]) { const p = palm(g, x, z, 0.85); p.position.y = 0.0; }
+  }
+  parent.add(g);
+  return g;
+}

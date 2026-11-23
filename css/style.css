@@ -534,3 +534,12 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .say-card img { width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: calc(3.4 * var(--u)); }
 .say-word { font-size: calc(13 * var(--u)); }
 .say-row { left: 31%; bottom: calc(4 * var(--u)); }
+
+/* the view toggle at the title's right end, level with START (user 2026-11-23: "모드는 오른쪽 끝으로 옮겨줘") */
+.s-title .view-tog { position: absolute; right: calc(3 * var(--u)); bottom: calc(5 * var(--u) + (13 * var(--u) - 8.6 * var(--u) - 1.6 * var(--u)) / 2); }
+
+/* the say-it card in the middle after all (user: "카드는 가운데 있어야지"), still bigger than it was; buttons centred under it */
+.say-card { left: 50%; top: calc(11 * var(--u)); width: calc(40 * var(--u)); }
+.say-card img { width: calc(29 * var(--u)); height: calc(29 * var(--u)); }
+.say-word { font-size: calc(11.5 * var(--u)); }
+.say-row { left: 50%; bottom: calc(3.4 * var(--u)); }

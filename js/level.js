@@ -124,7 +124,7 @@ export function buildLevel(L, side = false) {
     const kind = p[0];
     if (kind === 'stage') {
       const [, d, R] = p;
-      const st = E.stage(root, R); st.position.set(0, 0, -d);
+      const st = W.startPad(root, R, th); st.position.set(0, 0, -d);
       const base = E.island(root, 2 * R + 1.4, 2 * R + 1.4, 4.2); base.position.set(0, -1.5, -d);
       plats.push(box(d - R + 0.3, d + R - 0.3, 0, -R + 0.3, R - 0.3, { solid: true, bottom: -6 }));
       if (th === 'forest') W.rainbow(root, -d - 34);

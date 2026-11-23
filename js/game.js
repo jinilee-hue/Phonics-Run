@@ -666,10 +666,10 @@ function updateCamera(dt) {
     cam.pos.lerp(want, k); cam.look.lerp(look, k);
     E.camera.position.copy(cam.pos); E.camera.lookAt(cam.look);
   }
-  // the say-it turn: the picture shifts right so Tata stands beside the big word card (left)
-  cam.shift = (cam.shift || 0) + ((G.phase === 'say' && G.screen === 'play' ? -0.17 : 0) - (cam.shift || 0)) * E.damp(4, dt);
+  // the say-it turn: the picture slides down a little so Tata stands under the big word card (centre)
+  cam.shift = (cam.shift || 0) + ((G.phase === 'say' && G.screen === 'play' ? (SIDE() ? -0.17 : 0) : 0) - (cam.shift || 0)) * E.damp(4, dt);
   if (G.screen !== 'shop') {
-    if (Math.abs(cam.shift) > 0.002) E.camera.setViewOffset(innerWidth, innerHeight, cam.shift * innerWidth, 0, innerWidth, innerHeight);
+    if (Math.abs(cam.shift) > 0.002) E.camera.setViewOffset(innerWidth, innerHeight, 0, cam.shift * innerHeight, innerWidth, innerHeight);
     else if (E.camera.view?.enabled) E.camera.clearViewOffset();
   }
   E.sky.position.copy(E.camera.position);
@@ -851,6 +851,7 @@ window.PR = {
   env: E, tata: runner, get P() { return P; }, get lv() { return G.lv; }, get G() { return G; },   // tests
   sayCard: w => { app.classList.add('saying'); showSayCard(w, 0); const r = $('sayWord').getBoundingClientRect(); return { h: r.height, w: r.width, card: $('sayWord').parentElement.clientWidth, font: getComputedStyle($('sayWord')).fontSize }; },
   unlockAll() { for (const L of LEVELS) save.stars[L.id] = save.stars[L.id] || 1; drawLevels(); },   // tests
+  load: i => { load(i); drawLevels(); },   // tests: a world on the title
   shop: () => $('btnShop').click(), buy: id => shopTap(id, document.body), turn: y => { G.shopYaw = y; },
   get state() { return { screen: G.screen, phase: G.phase, x: P.x, y: P.y, z: P.z, d: -P.z, vx: P.vx, vy: P.vy, grounded: P.grounded, hearts: G.hearts, coins: G.coins, got: [...G.got], said: [...G.said], words: G.lv.words, wallet: save.wallet, worn: { ...save.worn }, demo: !!G.auto, t: G.t }; },
   screenAt: (x, y, z) => toScreen(x, y, z),
