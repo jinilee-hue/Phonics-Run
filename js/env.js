@@ -167,7 +167,7 @@ export const THEMES = {
   candy: {
     sky: [0x5b4bd0, 0xff7fb4, 0xffc690], fog: [0xffb9b0, 60, 240], hemi: [0xffe0d6, 0xb07ab0, 1.0], sun: [0xffbf94, 2.5],
     env: 0.3, exposure: 1.0, bloom: [0, 9], grass: 0xffa6d2, grassGlow: 0, dirt: [0x8c4f2c, 0xc27a3e, 0xe2a462, 0xf2c681],
-    tree: 'candy', fence: { color: 0xffffff, stripes: '#ff9ec4' }, cloud: [0xfff0f4, 0xffb3cc, 0.28],
+    tree: 'candy', fence: { color: 0xffffff, stripes: '#ff74ad' }, cloud: [0xfff0f4, 0xffb3cc, 0.28],
     frostings: [0xffb8d6, 0xb6efd9, 0xd6c6ff, 0xfff0a6, 0xffcfae],   // pastel icing, one per island
     balloons: [['#ff6fa8', '#fff3c4'], ['#ffb347', '#ffffff'], ['#a57bff', '#ffd6f0'], ['#4fd6c8', '#fff3c4'], ['#ff5a7a', '#ffd34d']],
     cardGlow: 0.18, playerLight: 0, stars: false,
@@ -287,7 +287,7 @@ function swirlTex(a, b) {
   }));
 }
 // ---- candy land (user 2026-11-23: "사탕들도 귀엽게 조금 더 입체감 있게, 파스텔 톤, 토핑 바른 것들도"): glossy pastel candy
-const PASTEL = [0xffb3d1, 0xb4eed8, 0xd2c0ff, 0xfff0a0, 0xffc9a6, 0xb7dbff];
+const PASTEL = [0xff8cbf, 0x63d9ad, 0xae8cff, 0xffd447, 0xff9c66, 0x6fbcff];   // candy: a step stronger than the pastel icing ground
 const SPRINKLE = [0xff7fb0, 0x7fd8ff, 0xffe066, 0x9cf0a8, 0xc59bff, 0xffffff];
 const candyM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08, sheen: 0.3, sheenColor: new THREE.Color(0xffffff) });
 const softM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.55, sheen: 0.6, sheenColor: new THREE.Color(0xffffff) });
@@ -327,7 +327,7 @@ function swirlTex2(a, b) {
   }));
 }
 function lollipop(g, s) {
-  const [a, b] = [['#ffb3d1', '#ffffff'], ['#a8ecd5', '#ffffff'], ['#cdb8ff', '#fff6c9'], ['#ffc9a6', '#fffaf0'], ['#b2d8ff', '#ffe6f2']][(rnd() * 5) | 0];
+  const [a, b] = [['#ff7fb4', '#ffffff'], ['#3fcf9c', '#ffffff'], ['#9d74ff', '#fff3b8'], ['#ff8f52', '#fff8ec'], ['#4ea8ff', '#ffe0ef']][(rnd() * 5) | 0];
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.065 * s, 0.065 * s, 1.75 * s, 12), std(0xfffaf2, 0.35));
   stick.position.y = 0.88 * s; g.add(stick);
   // a domed candy disc (thicker in the middle, rounded rim) with the swirl on both faces, glossy
@@ -349,7 +349,7 @@ function cupcake(g, s) {
   for (let i = 0; i < cp.count; i++) { const x = cp.getX(i), z = cp.getZ(i), a = Math.atan2(z, x), k = 1 + 0.045 * Math.cos(a * 18); cp.setX(i, x * k); cp.setZ(i, z * k); }
   cupGeo.computeVertexNormals();
   const cup = new THREE.Mesh(cupGeo, softM(PASTEL[(rnd() * PASTEL.length) | 0])); cup.position.y = 0.35 * s; g.add(cup);
-  const icing = candyM([0xfff6fb, 0xffd3e6, 0xd9fff0, 0xece2ff][(rnd() * 4) | 0]);
+  const icing = candyM([0xfff6fb, 0xffa3cb, 0x8fe6c4, 0xc8b0ff][(rnd() * 4) | 0]);
   [[0.66, 0.2, 0.82], [0.5, 0.18, 1.05], [0.32, 0.15, 1.25]].forEach(([r, t, y]) => { const tor = new THREE.Mesh(new THREE.TorusGeometry(r * s, t * s, 16, 40), icing); tor.rotation.x = Math.PI / 2; tor.position.y = y * s; g.add(tor); });
   const tip = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.32 * s, 20), icing); tip.position.y = 1.45 * s; g.add(tip);
   const cherry = new THREE.Mesh(new THREE.SphereGeometry(0.16 * s, 20, 14), candyM(0xff5c8a)); cherry.position.y = 1.66 * s; g.add(cherry);
@@ -372,7 +372,7 @@ function donut(g, s) {
 }
 function cottonCandy(g, s) {
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * s, 0.06 * s, 1.5 * s, 10), std(0xfffaf2, 0.35)); stick.position.y = 0.75 * s; g.add(stick);
-  const c = [0xffc4e0, 0xc6e3ff, 0xe3d4ff, 0xc9f5e4][(rnd() * 4) | 0];
+  const c = [0xffb3d8, 0x9fcdff, 0xc9adff, 0x9de8c8][(rnd() * 4) | 0];   // as strong as the pink one
   const m = new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.95, sheen: 1, sheenRoughness: 0.4, sheenColor: new THREE.Color(0xffffff), emissive: c, emissiveIntensity: 0.1 });
   [[0, 1.95, 0, 0.72], [0.42, 1.68, 0.12, 0.48], [-0.4, 1.72, 0.06, 0.5], [0.05, 2.4, -0.05, 0.42]].forEach(([x, y, z, r]) => { const b = new THREE.Mesh(blob(r * s, 0.14), m); b.position.set(x * s, y * s, z * s); g.add(b); });
 }

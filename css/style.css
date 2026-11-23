@@ -396,3 +396,15 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .card, .shelf { padding-top: calc(11 * var(--u)); }
 
 .say-word { white-space: nowrap; max-width: 100%; text-align: center; }   /* never two lines (game.js shrinks long words to fit) */
+
+/* the say-it turn, simpler (user 2026-11-23: "카드 읽는 ui 너무 복잡해" — the buttons crowded round Tata under the card):
+   the card stays at the top, the three buttons go down to the bottom middle (the touch pad is hidden during the turn),
+   a little smaller; no progress dots (the word slots at the top already turn green for each word said) */
+.say { inset: 0; left: 0; top: 0; translate: none; display: none; pointer-events: none; }
+.say.show { display: block; }
+.say-card { position: absolute; left: 50%; top: calc(13 * var(--u)); translate: -50% 0; width: calc(32 * var(--u)); }
+.say-card img { width: calc(23 * var(--u)); height: calc(23 * var(--u)); }
+.say-row { position: absolute; left: 50%; bottom: calc(3.4 * var(--u)); translate: -50% 0; gap: calc(3 * var(--u)); }
+.sbtn { width: calc(9.6 * var(--u)); height: calc(9.6 * var(--u)); }
+.smic { width: calc(12.4 * var(--u)); height: calc(12.4 * var(--u)); }
+.say-dots { display: none; }

@@ -736,7 +736,7 @@ window.PR = {
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; P.grounded = false; G.camY = y; cam.x = clampCamX(x + 2); cam.y = y; },
   give(n) { save.wallet = (save.wallet || 0) + n; writeSave(); drawLevels(); },
   env: E,   // tests: lights, bloom
-  sayCard: w => { showSayCard(w, 0); const r = $('sayWord').getBoundingClientRect(); return { h: r.height, w: r.width, card: $('sayWord').parentElement.clientWidth, font: getComputedStyle($('sayWord')).fontSize }; },
+  sayCard: w => { app.classList.add('saying'); showSayCard(w, 0); const r = $('sayWord').getBoundingClientRect(); return { h: r.height, w: r.width, card: $('sayWord').parentElement.clientWidth, font: getComputedStyle($('sayWord')).fontSize }; },
   unlockAll() { for (const L of LEVELS) save.stars[L.id] = save.stars[L.id] || 1; drawLevels(); },   // tests
   shop: () => $('btnShop').click(), buy: id => shopTap(id, document.body),
   get state() { return { screen: G.screen, phase: G.phase, x: P.x, y: P.y, vx: P.vx, vy: P.vy, grounded: P.grounded, hearts: G.hearts, coins: G.coins, got: [...G.got], said: [...G.said], words: G.lv.words, wallet: save.wallet, wear: [...save.wear], demo: !!G.auto, t: G.t }; },
