@@ -16,7 +16,7 @@ import { ITEMS, itemById } from './outfits.js';
 
 const qs = new URLSearchParams(location.search);
 const CAPTURE = qs.get('capture') === '1';
-const GAME_ID = 'phonics-run', SAVE_KEY = 'phonics-run.save';
+const GAME_ID = 'phonics-run', SAVE_KEY = 'phonics-run.save', COURSE = 'worlds5';   // bump COURSE when the levels are redesigned
 const app = document.getElementById('app');
 const $ = id => document.getElementById(id);
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -55,6 +55,9 @@ function loadSave() {
   s = Object.assign({ stars: {}, wallet: 0, owned: [], worn: {} }, s || {});
   if (Array.isArray(s.wear)) { for (const id of s.wear) { const it = itemById(id); if (it) s.worn[it.slot] = id; } delete s.wear; }   // (old save: a list)
   for (const it of ITEMS) if (it.price === 0 && !s.owned.includes(it.id)) s.owned.push(it.id);                  // the free one
+  // the courses changed (3 levels → 5 worlds): old stars meant other maps — start the worlds afresh (coins, clothes stay).
+  // (user: "맵은 두군데 끝나믄 모든 레벨을 다 깼다고 하는데" — the old 1–3 stars made it start at world 4)
+  if (s.course !== COURSE) { s.stars = {}; s.course = COURSE; try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch (e) { /* ignore */ } }
   return s;
 }
 let save = loadSave();
