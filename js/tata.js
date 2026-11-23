@@ -199,13 +199,13 @@ export class Tata {
       [[-0.084, 0.0], [-0.028, 0.012], [0.028, 0.008], [0.082, -0.014]].forEach(([fx, dl], i) => {
         const f = new THREE.Mesh(fingerGeo, orange);
         f.position.set(fx, -0.165 - dl, 0.0);
-        f.rotation.set(-0.1, 0, -fx * 0.8);
+        f.rotation.set(0.24, 0, -fx * 0.8);              // curled toward the palm (inner-back): the back of the hand shows
         if (i === 3) f.scale.set(0.93, 0.86, 0.93);
         hand.add(f);
       });
-      // thumb: on the inner front, lying along the palm, tip forward-down
+      // thumb: on the inner-front edge (seen from the front at the inside, from the side in front), tip down and in
       const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.046, 0.055, 8, 14), orange);
-      thumb.position.set(-0.112, -0.085, 0.04); thumb.rotation.set(-0.45, 0, 0.32); hand.add(thumb);
+      thumb.position.set(-0.118, -0.075, 0.008); thumb.rotation.set(0.12, 0, -0.55); hand.add(thumb);   // inner-front edge, tip down and in (sheet side view: in front)
       this.arms.push({ s, sh, elbow });
     }
 
@@ -222,21 +222,68 @@ export class Tata {
       const l = lobe(R, d, orange); l.rotation.z = -ang; l.position.set(0, 0, z); l.scale.z = x === 0 ? 1 : y > 0.1 ? 0.7 : 0.6;   // side view = one bulb, like the sheet
       this.tuft.add(l);
     }
-    // eyes: white domes half in the face, big dark-brown pupils looking a little inward, one catch-light up-right
+    // eyes (user 2026-11-23: "더 귀엽고 사랑스럽게 — 매직블럭의 여우 눈처럼"): a white dome half in the face; a BIG iris, dark
+    // brown at the rim, warm and lighter toward the bottom, a dark pupil; a big catch-light up-right + a small one low-left;
+    // a dark upper lash line with a little flick at the outer corner; pink blush on the cheeks
     const whiteM = new THREE.MeshStandardMaterial({ color: K.white, roughness: 0.32 });
-    const pupilM = new THREE.MeshStandardMaterial({ color: K.pupil, roughness: 0.18 });
+    const IRIS = 0.95, irisTex = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+      const body = g.createLinearGradient(0, 0, 0, 256); body.addColorStop(0, '#3a1a0b'); body.addColorStop(0.55, '#7a3c17'); body.addColorStop(1, '#c0702e');
+      g.fillStyle = body; g.beginPath(); g.arc(128, 128, 128, 0, Math.PI * 2); g.fill();
+      const rim = g.createRadialGradient(128, 128, 96, 128, 128, 128); rim.addColorStop(0, 'rgba(30,12,4,0)'); rim.addColorStop(1, 'rgba(30,12,4,.9)');
+      g.fillStyle = rim; g.beginPath(); g.arc(128, 128, 128, 0, Math.PI * 2); g.fill();
+      const pup = g.createRadialGradient(124, 118, 10, 124, 118, 62); pup.addColorStop(0, '#120502'); pup.addColorStop(0.85, '#1c0904'); pup.addColorStop(1, 'rgba(28,9,4,0)');
+      g.fillStyle = pup; g.beginPath(); g.arc(124, 118, 62, 0, Math.PI * 2); g.fill();
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+    })();
+    const irisGeo = (() => {                                   // a cap round +z with a flat (front) UV: the iris disc painted on it
+      const gg = new THREE.SphereGeometry(1, 40, 14, 0, Math.PI * 2, 0, IRIS).rotateX(Math.PI / 2);
+      const p = gg.getAttribute('position'), uv = gg.getAttribute('uv'), R = Math.sin(IRIS);
+      for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / R * 0.5 + 0.5, p.getY(i) / R * 0.5 + 0.5);
+      return gg;
+    })();
+    const irisM = new THREE.MeshStandardMaterial({ map: irisTex, roughness: 0.12, metalness: 0 });
     const hiM = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const capGeo = new THREE.SphereGeometry(1, 36, 12, 0, Math.PI * 2, 0, 0.62).rotateX(Math.PI / 2);   // a cap round +z
+    const lashM = clay(0x3a1a0b, 0.45, 0.05, 0.5);
+    const EW = 0.142, EH = 0.162, ED = 0.09;
     this.eyes = [];
     for (const s of [-1, 1]) {
       const e = onHead(new THREE.Group(), s * 0.2, 0.075, -0.04);
-      const white = ellipsoid(0.142, 0.162, 0.09, whiteM, 36); e.add(white);
-      const unit = new THREE.Group(); unit.scale.set(0.142 * 1.012, 0.162 * 1.012, 0.09 * 1.012); e.add(unit);
-      const pupil = new THREE.Mesh(capGeo, pupilM); pupil.rotation.set(0.04, -s * 0.24, 0); unit.add(pupil);
-      const hx = -s * 0.24 + 0.27, hy = 0.27;
-      const h1 = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10), hiM); h1.scale.z = 0.35;
-      h1.position.set(Math.sin(hx), Math.sin(hy), Math.sqrt(Math.max(0, 1 - Math.sin(hx) ** 2 - Math.sin(hy) ** 2)) * 1.02); unit.add(h1);
+      e.add(ellipsoid(EW, EH, ED, whiteM, 36));
+      const unit = new THREE.Group(); unit.scale.set(EW * 1.012, EH * 1.012, ED * 1.012); e.add(unit);
+      const look = new THREE.Group(); look.rotation.set(0.05, -s * 0.2, 0); unit.add(look);       // a little in and down
+      look.add(new THREE.Mesh(irisGeo, irisM));
+      const dot = (ax, ay, r) => {                             // a catch-light on the iris (unit-sphere space)
+        const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 10), hiM); m.scale.z = 0.3;
+        m.position.set(Math.sin(ax), Math.sin(ay), Math.sqrt(Math.max(0, 1 - Math.sin(ax) ** 2 - Math.sin(ay) ** 2)) * 1.015);
+        look.add(m);
+      };
+      dot(0.36, 0.38, 0.29); dot(-0.34, -0.4, 0.11);
+      // upper lash line round the top of the visible rim (where the dome leaves the face), thicker in the middle
+      const pts = [];
+      for (let i = 0; i <= 20; i++) {
+        const a = Math.PI * (0.06 + 0.88 * i / 20);
+        pts.push(new THREE.Vector3(Math.cos(a) * EW * 0.94, Math.sin(a) * EH * 0.94, 0.036 + 0.014 * Math.sin(a)));
+      }
+      // (the fox's lid: a smooth dark line hugging the top, no separate lashes)
+      const lash = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.021, 8, false), lashM);
+      const ends = pts.filter((_, i) => i === 0 || i === pts.length - 1).map(p => { const c = new THREE.Mesh(new THREE.SphereGeometry(0.021, 10, 8), lashM); c.position.copy(p); return c; });
+      e.add(lash, ...ends);
       this.head.add(e); this.eyes.push(e);
+    }
+    // blush: soft pink on the cheeks, under and outside the eyes
+    const blushTex = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+      const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,120,160,.7)'); gr.addColorStop(0.55, 'rgba(255,130,165,.35)'); gr.addColorStop(1, 'rgba(255,140,170,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    const blushM = new THREE.MeshBasicMaterial({ map: blushTex, transparent: true, depthWrite: false });
+    for (const s of [-1, 1]) {
+      const cx = s * 0.33, cy = -0.1, r = 0.1, sh = new THREE.Shape(); sh.absellipse(cx, cy, r * 1.15, r, 0, Math.PI * 2);
+      const m = headDecal(sh, blushM, 0.004, 32), uv = m.geometry.getAttribute('uv'), pp = m.geometry.getAttribute('position');
+      for (let i = 0; i < pp.count; i++) uv.setXY(i, (pp.getX(i) - cx) / (2.3 * r) + 0.5, (pp.getY(i) - cy) / (2 * r) + 0.5);
+      m.renderOrder = 2; this.head.add(m);
     }
     // eyebrows: brown clay arcs, outer ends lower
     for (const s of [-1, 1]) this.head.add(headTube([[s * 0.335, 0.255], [s * 0.27, 0.3], [s * 0.19, 0.315], [s * 0.115, 0.298]], 0.03, brow, 0.014));

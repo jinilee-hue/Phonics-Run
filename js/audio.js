@@ -171,4 +171,5 @@ export const sfx = {
   listen() { tone('sine', 880, 1175, 0.12, 0.14); },
   buy() { [659, 784, 988, 1319].forEach((f, i) => tone('triangle', f, f, 0.18, 0.2, i * 0.05)); noise(0.3, 0.05, 5000, 9000, 0.1, 2); },
   nope() { tone('triangle', 300, 220, 0.2, 0.18); },
+  boing() { tone('sine', 180, 620, 0.32, 0.32); tone('triangle', 360, 1240, 0.28, 0.12, 0.02); },
 };

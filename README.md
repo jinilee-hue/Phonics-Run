@@ -8,7 +8,7 @@ Word Mashup 3D 월드(B안 시안)의 환경 — 하늘·구름바다·떠 있�
 - 로컬: `python3 -m http.server 5185 --bind 127.0.0.1` → http://127.0.0.1:5185/ (ES 모듈이라 file:// 로는 안 열린다)
 - 주소 옵션: `?level=2` · `?play` 바로 시작 · `?x=60` 그 위치에서 · `?nohint` 시범·손 안내 끔 · `?fake=ok,wrong,silence` 말하기 판정 대신 ·
   `?debug` 판정 로그 · `?capture=1` 테스트(rAF 없음, `window.PR.step`)
-- 캐릭터 확인: `dev/tata.html?yaw=0&outfit=shades,cape,crown,goldshoes`
+- 캐릭터 확인: `dev/tata.html?yaw=0&outfit=shades,cape,crown,goldshoes` · 3D 아이콘 확인: `dev/icons.html`
 
 ## 흐름
 1. 타이틀: Tata가 손을 흔든다. 레벨 줄(1·2·3, 별 — 고르지 않음), START. 왼쪽 위 phonics-api 키·SHOP·지갑, 오른쪽 위 언어 토글(튜터 음성만, 처음 한국어)·소리.
@@ -19,15 +19,21 @@ Word Mashup 3D 월드(B안 시안)의 환경 — 하늘·구름바다·떠 있�
 4. m 그림을 다 모으면 게이트가 깨어난다. 게이트에서 모은 단어를 하나씩 말한다: "/m/ /m/ 단어" → 아이가 말함 → 맞으면 코인 +3.
    JUMP = 그 단어 건너뜀(코인 없음), 두 번 틀리면 넘어감, 첫 침묵에 JUMP 안내. 판정할 수 없으면(마이크 없음 등) 말하기 없이 열림.
 5. 게이트로 들어가면 결과(별 = 3 − 잃은 하트, 최소 1 · 모은 그림 · 코인). 코인은 지갑으로 → SHOP: 선글라스 15·망토 30·왕관 45·황금 신발 60.
-6. 레벨 3개(m 5·6·7개, 함정 1·3·5개, 리프트 0·2·2개), START는 아직 못 깬 첫 레벨부터.
+6. 레벨 3개, 레벨마다 테마·장치가 다르다(START는 아직 못 깬 첫 레벨부터):
+   - 1 **하늘 초원**(m 5·함정 1): 원래 월드 — 잔디섬·나무·노란 울타리·열기구, 틈과 발판 계단.
+   - 2 **노을 캔디랜드**(m 6·함정 3): 분홍 노을 하늘, 크림 드립 섬, 막대사탕·솜사탕 나무, 젤리 사탕, 사탕지팡이 울타리.
+     **젤리 북**을 밟으면 높이 튀어 올라 높은 섬·발판으로(그 길밖에 없음). 열기구 리프트 2개.
+   - 3 **별밤 수정섬**(m 7·함정 5): 남보라 하늘·별·초승달, 청록 빛 잔디, 수정 나무, 등불, 네온 울타리, Tata 둘레 조명.
+     **가라앉는 구름**(밟고 있으면 내려감 — 멈추지 말고 건너기)과 리프트.
 
 ## 파일
 | 파일 | 역할 |
 |---|---|
 | `js/game.js` | 흐름·물리(코요테 타임·점프 버퍼)·카메라·시범·게이트 말하기·상점 |
-| `js/env.js` | 월드 빌더(worldb에서 가져옴) |
+| `js/env.js` | 월드 빌더(worldb에서 가져옴) + 테마(`THEMES`, `applyTheme`) + 젤리 북·구름 발판 |
 | `js/level.js` | 코스 데이터, 발음 기대값 `PHON` |
-| `js/items.js` · `js/tata.js` | 카드·코인 · Tata 모델/동작/꾸미기 |
+| `js/items.js` · `js/tata.js` | 카드·코인 · Tata 모델/동작/꾸미기(눈은 매직블럭 여우 눈 스타일) |
+| `js/icons3d.js` | 화면 아이콘을 3D로 렌더(하트·코인·별·장갑 손·자물쇠·상점 아이템·깨진 하트) → PNG |
 | `js/audio.js` · `js/voice.js` | 음성·효과음·배경음악 · 클립 표(생성물) |
 | `js/phonics-api.js` · `js/mic.js` · `js/stt.js` · `js/stt-worker.js` · `stt/` | 발음 판정(phonics-kit / Phonics Puzzle 사본) |
 | `js/phonics-progress.js` | 공통 진도(phonics-kit 사본), id `phonics-run` |

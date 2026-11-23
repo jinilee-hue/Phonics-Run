@@ -2,6 +2,8 @@
 // Units: the runner is ~2 tall, runs 7.2/s, a full jump rises 3.4 and carries ~6 on the flat.
 // Parts: ['stage', cx, R] start pad · ['g', x0, x1, top] grass island · ['s', x0, x1, top, colour] chevron slab (jump up
 // through it) · ['lift', cx, top, axis, amp, period, w] balloon lift · ['end', x0, x1, top, gateX] gate island.
+// ['bounce', x, groundTop] jelly drum (candy) · ['cloud', x0, x1, top] cloud that sinks while stood on (night).
+// Each level has a theme (env.js THEMES): 1 meadow · 2 candy sunset · 3 starry night.
 // Items: ['c', word, x, y] card (centre) · ['row', x0, x1, y, n] coins · ['arc', x0, x1, y0, rise, n] coins on an arc.
 import * as THREE from 'three';
 import * as E from './env.js';
@@ -18,7 +20,7 @@ const on = top => top + 1.15;            // a card's centre when it stands on a 
 
 export const LEVELS = [
   {
-    id: 1,
+    id: 1, theme: 'meadow',
     parts: [
       ['stage', 0, 4.8],
       ['g', 5.1, 24, 0],          // joins the start pad (a 0.5 seam you can walk over)
@@ -44,82 +46,89 @@ export const LEVELS = [
     ],
   },
   {
-    id: 2,
+    // candy sunset: two jelly drums bounce Tata up to a frosting plateau and a high slab (no other way across)
+    id: 2, theme: 'candy',
     parts: [
       ['stage', 0, 4.8],
-      ['g', 5.1, 21, 0],
-      ['g', 25, 38, 0],
-      ['s', 41.5, 45.5, 1.8, 'pink'],
-      ['s', 48.5, 52.5, 3.4, 'blue'],
-      ['lift', 57.5, 2.4, 'y', 1.4, 4.2, 3],
-      ['g', 62.5, 76, 1.6],
-      ['g', 79.5, 85.5, 0.6],
-      ['lift', 92, 1.4, 'x', 2.2, 5.0, 3.2],
-      ['g', 99, 113, 1.6],
-      ['s', 106, 110, 4.4, 'yellow'],
-      ['g', 117, 129, 2.6],
-      ['end', 132.5, 149, 2.6, 141],
+      ['g', 5.1, 20, 0],
+      ['g', 24, 42, 0],
+      ['bounce', 39.5, 0],
+      ['g', 44, 56, 5.0],
+      ['s', 59, 63, 3.2, 'pink'],
+      ['lift', 67.5, 2.4, 'y', 1.4, 4.2, 3],
+      ['g', 72, 86, 1.6],
+      ['g', 89.5, 96.5, 0.6],
+      ['bounce', 94.6, 0.6],
+      ['s', 99.5, 104.5, 6.0, 'blue'],
+      ['g', 107.5, 119, 1.6],
+      ['lift', 125, 1.6, 'x', 2.2, 5.0, 3.2],
+      ['g', 131, 141, 2.6],
+      ['end', 144.5, 161, 2.6, 153],
     ],
     items: [
-      ['row', 9, 12, 1.0, 4], ['c', 'meat', 15.5, on(0)],
-      ['arc', 21.3, 24.7, 1.2, 2.2, 4],
-      ['c', 'lid', 31, on(0)], ['arc', 28.6, 33.4, 1.5, 2.6, 5],
-      ['arc', 38.3, 41.2, 1.4, 2.0, 3],
-      ['c', 'mat', 50.5, on(3.4)],
-      ['c', 'ten', 67, on(1.6)], ['arc', 64.6, 69.4, 3.1, 2.6, 5],
-      ['c', 'mitt', 72, on(1.6)],
-      ['c', 'mouse', 82.5, on(0.6)],
-      ['row', 99.5, 101.5, 2.6, 3],
-      ['c', 'heart', 103, on(1.6)],
-      ['c', 'mug', 108, on(4.4)],
-      ['arc', 113.3, 116.7, 2.8, 2.2, 4],
-      ['c', 'mail', 123, on(2.6)], ['row', 125, 127.5, 3.6, 3],
-      ['arc', 129.3, 132.2, 3.6, 2.0, 3],
+      ['row', 8, 11, 1.0, 4], ['c', 'meat', 14.5, on(0)],
+      ['arc', 20.3, 23.7, 1.2, 2.2, 4],
+      ['c', 'lid', 30, on(0)], ['arc', 27.6, 32.4, 1.5, 2.6, 5],
+      ['arc', 39.8, 45.2, 2.2, 5.6, 5],
+      ['c', 'mat', 50, on(5.0)], ['row', 52, 54.5, 6.0, 3],
+      ['arc', 56.3, 58.7, 5.6, 1.2, 3],
+      ['c', 'ten', 76.5, on(1.6)], ['arc', 74.1, 78.9, 3.1, 2.6, 5],
+      ['c', 'mitt', 82, on(1.6)],
+      ['c', 'mouse', 91.5, on(0.6)],
+      ['arc', 94.8, 99.6, 2.6, 5.0, 4],
+      ['c', 'mug', 102, on(6.0)],
+      ['row', 108.5, 110, 2.6, 2], ['c', 'heart', 112.5, on(1.6)], ['arc', 110.1, 114.9, 3.1, 2.6, 5],
+      ['c', 'mail', 136, on(2.6)], ['row', 137.5, 139.5, 3.6, 3],
+      ['arc', 141.3, 144.2, 3.6, 2.0, 3],
     ],
   },
   {
-    id: 3,
+    // starry night: crystal islands, glowing lanterns, and cloud bridges that sink while you stand on them
+    id: 3, theme: 'night',
     parts: [
       ['stage', 0, 4.8],
-      ['g', 5.1, 19, 0],
-      ['s', 22.5, 26, 1.4, 'yellow'],
-      ['s', 29.5, 33, 2.8, 'pink'],
-      ['g', 36.5, 53, 1.4],
-      ['lift', 57.5, 1.6, 'y', 1.6, 4.0, 3],
-      ['g', 62.5, 75, 2.6],
-      ['s', 78.5, 82, 3.8, 'blue'],
-      ['s', 85.5, 89, 3.0, 'pink'],
-      ['g', 92.5, 107, 1.6],
-      ['lift', 113.5, 2.0, 'x', 2.4, 5.5, 3.2],
-      ['g', 120.5, 136, 2.6],
-      ['s', 139.5, 143, 4.0, 'yellow'],
-      ['s', 146.5, 150, 4.0, 'blue'],
-      ['g', 153.5, 168, 2.0],
-      ['end', 171.5, 188, 3.0, 180],
+      ['g', 5.1, 18, 0],
+      ['cloud', 21.5, 24.7, 1.0],
+      ['cloud', 27.5, 30.7, 1.8],
+      ['g', 34, 50, 1.4],
+      ['lift', 54.5, 1.6, 'y', 1.6, 4.0, 3],
+      ['g', 59.5, 72, 2.6],
+      ['cloud', 75.5, 78.7, 3.4],
+      ['cloud', 81.5, 84.7, 3.0],
+      ['cloud', 87.5, 90.7, 2.6],
+      ['g', 93.5, 108, 1.6],
+      ['lift', 114.5, 2.0, 'x', 2.4, 5.5, 3.2],
+      ['g', 121.5, 137, 2.6],
+      ['s', 140.5, 144, 4.0, 'yellow'],
+      ['s', 147.5, 151, 4.0, 'blue'],
+      ['g', 154.5, 169, 2.0],
+      ['end', 172.5, 189, 3.0, 181],
     ],
     items: [
-      ['row', 8.5, 10.5, 1.0, 3], ['c', 'monkey', 13, on(0)],
-      ['arc', 19.3, 22.2, 1.2, 2.0, 3], ['arc', 26.3, 29.2, 2.6, 2.0, 3],
-      ['c', 'mushroom', 31.25, on(2.8)],
-      ['c', 'fox', 41, on(1.4)], ['arc', 38.6, 43.4, 2.9, 2.6, 5],
-      ['c', 'gift', 48, on(1.4)], ['arc', 45.6, 50.4, 2.9, 2.6, 5],
-      ['c', 'mirror', 68.5, on(2.6)], ['row', 70.5, 73, 3.6, 3],
-      ['arc', 75.3, 78.2, 3.6, 2.0, 3],
-      ['c', 'kite', 97, on(1.6)], ['arc', 94.6, 99.4, 3.1, 2.6, 5],
-      ['c', 'match', 103, on(1.6)],
-      ['c', 'mice', 124.5, on(2.6)],
-      ['c', 'doll', 129.5, on(2.6)], ['arc', 127.1, 131.9, 4.1, 2.6, 5],
-      ['c', 'mouth', 141.25, on(4.0)],
-      ['arc', 143.3, 146.2, 5.0, 1.6, 3],
-      ['c', 'gate', 158, on(2.0)], ['arc', 155.6, 160.4, 3.5, 2.6, 5],
-      ['c', 'mask', 164, on(2.0)],
-      ['arc', 168.3, 171.2, 3.2, 2.0, 3],
+      ['row', 8.5, 10.5, 1.0, 3], ['c', 'monkey', 12.5, on(0)],
+      ['arc', 18.3, 21.2, 1.2, 1.8, 3],
+      ['c', 'mushroom', 29.1, on(1.8)],
+      ['arc', 30.9, 33.8, 2.4, 1.8, 3],
+      ['c', 'fox', 39, on(1.4)], ['arc', 36.6, 41.4, 2.9, 2.6, 5],
+      ['c', 'gift', 45.5, on(1.4)], ['arc', 43.1, 47.9, 2.9, 2.6, 5],
+      ['c', 'mirror', 66, on(2.6)], ['row', 68.5, 71, 3.6, 3],
+      ['row', 76, 78.2, 4.6, 3], ['row', 82, 84.2, 4.2, 3], ['row', 88, 90.2, 3.8, 3],
+      ['c', 'kite', 98.5, on(1.6)], ['arc', 96.1, 100.9, 3.1, 2.6, 5],
+      ['c', 'match', 104, on(1.6)],
+      ['c', 'mice', 125.5, on(2.6)],
+      ['c', 'doll', 130.5, on(2.6)], ['arc', 128.1, 132.9, 4.1, 2.6, 5],
+      ['c', 'mouth', 142.25, on(4.0)],
+      ['arc', 144.3, 147.2, 5.0, 1.6, 3],
+      ['c', 'gate', 159, on(2.0)], ['arc', 156.6, 161.4, 3.5, 2.6, 5],
+      ['c', 'mask', 165, on(2.0)],
+      ['arc', 169.3, 172.2, 3.2, 2.0, 3],
     ],
   },
 ];
 
 /** build a level's world; returns platforms, items, gate and bounds */
 export function buildLevel(L) {
+  E.applyTheme(L.theme);
   E.setSeed(100 + L.id * 7);
   E.balloons.length = 0;
   const root = new THREE.Group(); E.scene.add(root);
@@ -174,9 +183,17 @@ export function buildLevel(L) {
       const cols = [['#ff6fa8', '#ffd34d'], ['#4fb3ff', '#ffffff'], ['#7ed96b', '#a57bff']];
       const [a, b] = cols[plats.length % cols.length];
       const g = E.liftBalloon(root, w, a, b); g.position.set(cx, top, 0);
-      plats.push({ x0: cx - w / 2, x1: cx + w / 2, top, oneWay: true, lift: { cx, top, axis, amp, period, w, obj: g }, dx: 0, dy: 0 });
+      plats.push({ x0: cx - w / 2, x1: cx + w / 2, top, oneWay: true, moving: true, lift: { cx, top, axis, amp, period, w, obj: g }, dx: 0, dy: 0 });
+    } else if (kind === 'bounce') {
+      const [, x, gtop] = p;
+      const g = E.bouncePad(root); g.position.set(x, gtop + 0.5, 0);
+      plats.push({ x0: x - 0.85, x1: x + 0.85, top: gtop + 0.5, oneWay: true, bounce: { obj: g, t: 9 } });
+    } else if (kind === 'cloud') {
+      const [, x0, x1, top] = p;
+      const g = E.cloudPad(root, x1 - x0); g.position.set((x0 + x1) / 2, top, 0);
+      plats.push({ x0, x1, top, oneWay: true, moving: true, sink: { base: top, cur: 0, max: 3.2, down: 1.3, up: 0.9, obj: g }, dx: 0, dy: 0 });
     }
-    minTop = Math.min(minTop, p[0] === 'lift' ? p[2] - p[4] : p[0] === 'stage' ? 0 : p[3]);
+    minTop = Math.min(minTop, kind === 'lift' ? p[2] - p[4] : kind === 'stage' ? 0 : kind === 'bounce' ? p[2] : kind === 'cloud' ? p[3] - 3.2 : p[3]);
   }
 
   for (const it of L.items) {
@@ -209,9 +226,24 @@ export function buildLevel(L) {
   };
 }
 
-/** move the balloon lifts (time T); each platform keeps its frame delta for whoever stands on it */
-export function updateLifts(plats, T) {
+/** move the balloon lifts (time T) and the sinking clouds (standOn = the platform the runner stands on); each moving
+ *  platform keeps its frame delta for whoever stands on it. Jelly drums wobble after a bounce. */
+export function updateLifts(plats, T, dt = 1 / 60, standOn = null) {
   for (const p of plats) {
+    if (p.bounce) {
+      const b = p.bounce; b.t += dt;
+      const k = Math.exp(-b.t * 5) * Math.sin(b.t * 28);
+      const j = b.obj.getObjectByName('jelly'); if (j) { j.scale.set(1 + 0.12 * k, 0.42 * (1 - 0.45 * k), 1 + 0.12 * k); }
+      continue;
+    }
+    if (p.sink) {
+      const f = p.sink, oy = p.top;
+      f.cur = Math.min(f.max, Math.max(0, f.cur + (standOn === p ? f.down : -f.up) * dt));
+      p.top = f.base - f.cur; p.dx = 0; p.dy = p.top - oy;
+      f.obj.position.y = p.top + Math.sin(T * 1.7 + f.base) * 0.03;
+      f.obj.scale.y = standOn === p ? 0.9 : 1;
+      continue;
+    }
     if (!p.lift) continue;
     const f = p.lift, s = Math.sin((T / f.period) * Math.PI * 2);
     const cx = f.cx + (f.axis === 'x' ? f.amp * s : 0);

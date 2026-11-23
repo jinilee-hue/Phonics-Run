@@ -1,7 +1,7 @@
 // Things to pick up: picture cards (lesson pack words — the /m/ ones to collect, the others to jump over) and "m" coins.
 // A card shows only the picture, like a picture card (phonics standard: the lesson-pack picture inside the card).
 import * as THREE from 'three';
-import { canvasTex, roundRect, shapeUV, std, rr, damp, burst, puff, sparkTex } from './env.js';
+import { canvasTex, roundRect, shapeUV, std, rr, damp, burst, puff, sparkTex, TH } from './env.js';
 
 const CW = 1.6, CR = 0.26;
 const bodyGeo = (() => {
@@ -40,7 +40,7 @@ export function makeCard(parent, word, isM, x, y) {
   const root = new THREE.Group(); root.position.set(x, y, 0);
   const body = new THREE.Mesh(bodyGeo, rimMats[rimNext++ % rimMats.length]);
   body.castShadow = true;
-  const faceM = new THREE.MeshStandardMaterial({ map: faceTex(word), roughness: 0.6, emissive: 0xffffff, emissiveMap: faceTex(word), emissiveIntensity: 0.14 });
+  const faceM = new THREE.MeshStandardMaterial({ map: faceTex(word), roughness: 0.6, emissive: 0xffffff, emissiveMap: faceTex(word), emissiveIntensity: TH.cardGlow });
   const face = new THREE.Mesh(faceGeo, faceM); face.position.z = 0.096;
   const halo = new THREE.Sprite(haloMat.clone()); halo.scale.setScalar(2.9); halo.position.z = -0.15;
   root.add(halo, body, face);
@@ -58,6 +58,7 @@ const coinFace = canvasTex(128, 128, g => {
   g.fillStyle = '#e48f0c'; g.fillText('m', 64, 56);
   g.fillStyle = '#fff7c8'; g.fillText('m', 62, 53);
 });
+coinFace.center.set(0.5, 0.5); coinFace.rotation = Math.PI / 2;   // the cap UV of a cylinder turned to face +z lies on its side
 const coinMats = [
   std(0xf5b41e, 0.32, { metalness: 0.25, emissive: 0x6a3a00, emissiveIntensity: 0.35 }),
   new THREE.MeshStandardMaterial({ map: coinFace, roughness: 0.32, metalness: 0.2, emissive: 0xffc23a, emissiveIntensity: 0.25 }),

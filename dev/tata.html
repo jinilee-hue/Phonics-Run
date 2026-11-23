@@ -35,9 +35,9 @@ function shot(yawDeg = 0, mode = 'pose', vx = 0, phase = 0, vy = 0, grounded = t
 const q = new URLSearchParams(location.search);
 if (q.get('outfit')) t.setOutfit(Object.fromEntries(q.get('outfit').split(',').map(k => [k, true])));
 shot(parseFloat(q.get('yaw') || '0'));
-function view(cy = 1.04, h = 2.25) {
+function view(cy = 1.04, h = 2.25, cx = 0) {
   const hh = h / 2; Object.assign(cam, { left: -hh * W / H, right: hh * W / H, top: hh, bottom: -hh }); cam.updateProjectionMatrix();
-  cam.position.set(0, cy, 10); cam.lookAt(0, cy, 0);
+  cam.position.set(cx, cy, 10); cam.lookAt(cx, cy, 0);
 }
 window.TV = { shot, t, view };
 </script>

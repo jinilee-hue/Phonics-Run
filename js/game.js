@@ -10,6 +10,7 @@ import { Tata } from './tata.js';
 import { LEVELS, buildLevel, updateLifts, PHON } from './level.js';
 import { updateItems, takeCard, takeCoin } from './items.js';
 import * as A from './audio.js';
+import { ICON, refreshCoin } from './icons3d.js';
 
 const qs = new URLSearchParams(location.search);
 const CAPTURE = qs.get('capture') === '1';
@@ -22,7 +23,7 @@ const pick = a => a[(Math.random() * a.length) | 0];
 // ---------------------------------------------------------------- tuning
 const PH = {
   run: 7.2, accG: 44, accA: 30, decG: 38, decA: 9, turn: 1.7,
-  jumpV: 15.2, gUp: 34, gCut: 85, gDown: 46, maxFall: 24,
+  jumpV: 15.2, gUp: 34, gCut: 85, gDown: 46, maxFall: 24, bounceV: 21,
   coyote: 0.12, buffer: 0.15, hw: 0.42, h: 1.95,
 };
 const HEARTS = 3, TRAP_COST = 2, SAY_REWARD = 3;
@@ -95,7 +96,7 @@ addEventListener('pointerdown', () => {
 addEventListener('contextmenu', e => e.preventDefault());
 
 // ---------------------------------------------------------------- HUD
-const HEART_SVG = on => `<svg viewBox="0 0 24 24" class="${on ? '' : 'lost'}"><path d="M12 21s-8-4.9-8-10.9A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 8 2.9C20 16.1 12 21 12 21z" fill="${on ? '#ff5d8f' : '#e7e1f3'}" stroke="${on ? '#d6336c' : '#c9c1de'}" stroke-width="1.6" stroke-linejoin="round"/>${on ? '<ellipse cx="8.6" cy="10.4" rx="1.6" ry="1.1" fill="#fff" opacity=".85" transform="rotate(-30 8.6 10.4)"/>' : ''}</svg>`;
+const HEART_SVG = on => `<img class="${on ? '' : 'lost'}" src="${on ? ICON.heartOn : ICON.heartOff}" alt="" draggable="false">`;
 function drawHearts(popIdx = -1) {
   $('hearts').innerHTML = Array.from({ length: HEARTS }, (_, i) => HEART_SVG(i < G.hearts)).join('');
   if (popIdx >= 0) $('hearts').children[popIdx]?.classList.add('pop');
@@ -113,7 +114,7 @@ function drawCoins(bump, minus) {
   const c = $('coins').parentElement;
   if (bump || minus) { c.classList.remove('bump', 'minus'); void c.offsetWidth; c.classList.add(minus ? 'minus' : 'bump'); }
 }
-const STAR_SVG = on => `<svg viewBox="0 0 24 24" class="${on ? 'on' : ''}"><path d="M12 2.8l2.75 5.6 6.15.9-4.45 4.33 1.05 6.12L12 16.87l-5.5 2.88 1.05-6.12L3.1 9.3l6.15-.9z" fill="${on ? '#ffd23f' : '#ece7f7'}" stroke="${on ? '#e9a00c' : '#d4cbe8'}" stroke-width="1.5" stroke-linejoin="round"/>${on ? '<path d="M9.6 8.6l1.3-2.6" stroke="#fff6c4" stroke-width="1.4" stroke-linecap="round"/>' : ''}</svg>`;
+const STAR_SVG = on => `<img class="star${on ? ' on' : ''}" src="${on ? ICON.starOn : ICON.starOff}" alt="" draggable="false">`;
 function toScreen(x, y, z = 0) {
   const v = new THREE.Vector3(x, y, z).project(E.camera);
   return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };
@@ -303,7 +304,8 @@ function physics(dt, control) {
     runner.jumped(); A.sfx.jump();
     E.puff(P.x - P.facing * 0.2, P.y + 0.05, 0.15, -P.facing * 1.5, 0.4, 0.5);
   }
-  const g = P.vy > 0 ? (K.jump && control ? PH.gUp : PH.gCut) : PH.gDown;
+  if (P.vy <= 0) P.boost = false;
+  const g = P.vy > 0 ? ((K.jump && control) || P.boost ? PH.gUp : PH.gCut) : PH.gDown;
   P.vy = Math.max(-PH.maxFall, P.vy - g * dt);
   // horizontal, blocked by island sides
   let nx = P.x + P.vx * dt;
@@ -322,16 +324,20 @@ function physics(dt, control) {
   if (P.vy <= 0) {
     for (const p of L.plats) {
       if (P.x + hw * 0.9 <= p.x0 || P.x - hw * 0.9 >= p.x1) continue;
-      const tol = 0.06 + Math.abs(p.dy || 0);
+      const tol = p.bounce ? 0.62 : 0.06 + Math.abs(p.dy || 0);     // a drum is also stepped onto from the side
       if (P.y >= p.top - tol && ny <= p.top + 1e-4 && (!land || p.top > land.top)) land = p;
     }
   }
-  if (land) {
+  if (land && land.bounce) {                                    // jelly drum: boing — up high, no need to hold jump
+    ny = land.top; P.vy = PH.bounceV; P.boost = true; P.grounded = false; P.ground = null; P.coyote = 0;
+    land.bounce.t = 0; runner.jumped(); A.sfx.boing();
+    E.puff(P.x, ny + 0.1, 0.3, 0, 1.2, 0.7);
+  } else if (land) {
     ny = land.top; P.vy = 0; P.grounded = true; P.ground = land;
     if (!wasGrounded) { runner.landed(impact, P.x, ny); if (impact > 6) A.sfx.land(); }
   } else { P.grounded = false; P.ground = null; }
   P.y = ny;
-  if (P.grounded && !P.ground.lift && P.x > P.ground.x0 + 1.2 && P.x < P.ground.x1 - 1.2) G.safe = { x: P.x, y: P.ground.top };
+  if (P.grounded && !P.ground.moving && P.x > P.ground.x0 + 1.2 && P.x < P.ground.x1 - 1.2) G.safe = { x: P.x, y: P.ground.top };
 }
 
 // ---------------------------------------------------------------- items
@@ -572,8 +578,9 @@ function updateCamera(dt) {
 function tick(dt) {
   G.t += dt;
   const L = G.lv;
-  updateLifts(L.plats, G.t);
-  if (P.grounded && P.ground?.lift && G.phase !== 'enter') { P.x += P.ground.dx; P.y += P.ground.dy; }
+  updateLifts(L.plats, G.t, dt, P.grounded ? P.ground : null);
+  if (P.grounded && P.ground?.moving && G.phase !== 'enter') { P.x += P.ground.dx; P.y += P.ground.dy; }
+  E.playerLight.position.set(P.x + 0.6, P.y + 2.6, 2.4);
   const playing = G.screen === 'play';
   if (playing && G.phase === 'play') {
     const n = Math.ceil(dt / (1 / 120));
@@ -642,12 +649,7 @@ keyBtn.addEventListener('click', async () => { A.unlock(); A.sfx.tap(); if (wind
 if (window.PhonicsAPI) { PhonicsAPI.init().then(showApi); addEventListener('phonicsapi:status', showApi); }
 
 // shop: coins from every game → things for Tata to wear (a reward has to be spendable)
-const ITEM_SVG = {
-  shades: '<svg viewBox="0 0 64 64"><rect x="6" y="22" width="22" height="18" rx="6" fill="#2a1240" stroke="#ff4fa3" stroke-width="4"/><rect x="36" y="22" width="22" height="18" rx="6" fill="#2a1240" stroke="#ff4fa3" stroke-width="4"/><path d="M28 29h8" stroke="#ff4fa3" stroke-width="4" stroke-linecap="round"/><circle cx="21" cy="27" r="2.6" fill="#fff"/><circle cx="51" cy="27" r="2.6" fill="#fff"/></svg>',
-  cape: '<svg viewBox="0 0 64 64"><path d="M22 12h20l12 40c-7 3-14 3-22 3s-15 0-22-3z" fill="#e8304a"/><path d="M22 12h20l4 13c-5 2-9 2-14 2s-9 0-14-2z" fill="#ff5b6e" opacity=".55"/><rect x="18" y="9" width="28" height="7" rx="3.5" fill="#ffc83a"/></svg>',
-  crown: '<svg viewBox="0 0 64 64"><path d="M10 46l-2-26 13 11 11-17 11 17 13-11-2 26z" fill="#ffc83a" stroke="#e39a0c" stroke-width="2.5" stroke-linejoin="round"/><rect x="10" y="44" width="44" height="8" rx="3" fill="#f5b21c"/><circle cx="22" cy="39" r="3.5" fill="#ff3f79"/><circle cx="32" cy="37" r="3.5" fill="#2f7bff"/><circle cx="42" cy="39" r="3.5" fill="#37d39b"/></svg>',
-  goldshoes: '<svg viewBox="0 0 64 64"><path d="M8 40c0-10 8-16 18-16h4c10 0 14 6 22 8 5 1 6 5 6 8v4H8z" fill="#ffc23a" stroke="#e39a0c" stroke-width="2.5" stroke-linejoin="round"/><rect x="6" y="44" width="52" height="7" rx="3.5" fill="#fff4d8"/><circle cx="24" cy="31" r="3" fill="#fff6c8"/></svg>',
-};
+const ITEM_SVG = Object.fromEntries(SHOP.map(it => [it.id, `<img src="${ICON[it.id]}" alt="" draggable="false">`]));
 function drawShop() {
   $('wallet').textContent = save.wallet || 0;
   $('items').innerHTML = SHOP.map(it => {
@@ -690,6 +692,10 @@ $('oAgain').addEventListener('click', () => startLevel(G.idx));
 $('cNext').addEventListener('click', () => { const n = Math.min(LEVELS.length - 1, G.idx + 1); load(n); startLevel(n); });
 addEventListener('resize', () => { E.onResize(); if (G.auto) pointHand($('bJump').classList.contains('guide') ? 'bJump' : $('bRight').classList.contains('guide') ? 'bRight' : null); });
 
+// ---------------------------------------------------------------- 3D pictures in the page
+$('hand').innerHTML = `<img src="${ICON.glove}" alt="" draggable="false">`;
+document.querySelector('.bigheart').innerHTML = `<img src="${ICON.broken}" alt="" draggable="false">`;
+
 // ---------------------------------------------------------------- boot
 const qLevel = parseInt(qs.get('level'), 10);
 load(isFinite(qLevel) ? Math.min(LEVELS.length, Math.max(1, qLevel)) - 1 : continueLevel());
@@ -702,6 +708,7 @@ window.PR = {
   step: dt => tick(dt), press, start: i => startLevel(i ?? G.idx), toTitle, skip: () => endDemo(),
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; P.grounded = false; G.camY = y; cam.x = clampCamX(x + 2); cam.y = y; },
   give(n) { save.wallet = (save.wallet || 0) + n; writeSave(); drawLevels(); },
+  unlockAll() { for (const L of LEVELS) save.stars[L.id] = save.stars[L.id] || 1; drawLevels(); },   // tests
   shop: () => $('btnShop').click(), buy: id => shopTap(id, document.body),
   get state() { return { screen: G.screen, phase: G.phase, x: P.x, y: P.y, vx: P.vx, vy: P.vy, grounded: P.grounded, hearts: G.hearts, coins: G.coins, got: [...G.got], said: [...G.said], words: G.lv.words, wallet: save.wallet, wear: [...save.wear], demo: !!G.auto, t: G.t }; },
   screenAt: (x, y, z) => toScreen(x, y, z),
@@ -709,6 +716,7 @@ window.PR = {
 };
 fontsReady.then(() => {
   for (const f of E.redraws) f();
+  refreshCoin();
   if (!CAPTURE) {
     let last = performance.now();
     const loop = now => { const dt = Math.min(0.05, (now - last) / 1000); last = now; tick(dt); requestAnimationFrame(loop); };

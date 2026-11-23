@@ -104,7 +104,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.28;
 
-const hemi = new THREE.HemisphereLight(0xd3efff, 0xf0d2b0, 0.95);
+export const hemi = new THREE.HemisphereLight(0xd3efff, 0xf0d2b0, 0.95);
 export const sun = new THREE.DirectionalLight(0xfff0db, 2.9);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -153,6 +153,73 @@ export const sky = (() => {
   return s;
 })();
 
+// ---------------------------------------------------------------- themes: one look per level (user 2026-11-23: "level별 맵이 다양했으면")
+// meadow = the Word Mashup world as it was · candy = a sunset candy land · night = a starry crystal night.
+export const THEMES = {
+  meadow: {
+    sky: [0x0a86e2, 0x1bb7f1, 0xa8eaff], fog: [0x9fdcff, 70, 260], hemi: [0xd3efff, 0xf0d2b0, 0.95], sun: [0xfff0db, 2.9],
+    env: 0.28, exposure: 0.96, bloom: [0.3, 1.1], grass: 0x5ec53f, grassGlow: 0, dirt: [0x7d4a2b, 0xa96b3c, 0xc98b4f, 0xd99d5c],
+    tree: 'round', fence: { color: 0xffc226 }, cloud: [0xffffff, 0xc7d3ff, 0.2],
+    balloons: [['#ff6fa8', '#ffd34d'], ['#7ed96b', '#a57bff'], ['#ff5a5f', '#fff1d6'], ['#4fb3ff', '#ffd34d'], ['#ff8fc8', '#ffffff'], ['#ffd34d', '#6fd16b']],
+    cardGlow: 0.14, playerLight: 0, stars: false,
+  },
+  candy: {
+    sky: [0x5b4bd0, 0xff7fb4, 0xffc690], fog: [0xffb9b0, 60, 240], hemi: [0xffe0d6, 0xb07ab0, 1.0], sun: [0xffbf94, 2.5],
+    env: 0.3, exposure: 1.0, bloom: [0.36, 1.05], grass: 0xffa6d2, grassGlow: 0, dirt: [0x8c4f2c, 0xc27a3e, 0xe2a462, 0xf2c681],
+    tree: 'candy', fence: { color: 0xffffff, stripes: '#ff4f6d' }, cloud: [0xfff0f4, 0xffb3cc, 0.28],
+    balloons: [['#ff6fa8', '#fff3c4'], ['#ffb347', '#ffffff'], ['#a57bff', '#ffd6f0'], ['#4fd6c8', '#fff3c4'], ['#ff5a7a', '#ffd34d']],
+    cardGlow: 0.18, playerLight: 0, stars: false,
+  },
+  night: {
+    sky: [0x0a0b33, 0x28206e, 0x6c4cb4], fog: [0x2c2870, 55, 230], hemi: [0xa8b2ff, 0x3a2a72, 0.95], sun: [0xcfd8ff, 1.8],
+    env: 0.4, exposure: 1.06, bloom: [0.6, 0.92], grass: 0x34cfb0, grassGlow: 0.18, dirt: [0x231c48, 0x352a68, 0x4a3a88, 0x5c4a9e],
+    tree: 'crystal', fence: { color: 0x8af4ff, glow: 0x2fc8ff }, cloud: [0xc4c0ff, 0x6a5fd0, 0.4],
+    balloons: null, cardGlow: 0.34, playerLight: 22, stars: true,
+  },
+};
+export let TH = THEMES.meadow;
+// stars + a crescent moon (night only); they ride with the camera like the sky dome
+export const nightSky = (() => {
+  const g = new THREE.Group(); g.visible = false; g.renderOrder = -90;
+  const n = 700, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, y = 0.08 + Math.random() * 0.92, r = Math.sqrt(1 - y * y);
+    pos.set([Math.cos(a) * r * 500, y * 500, Math.sin(a) * r * 500], i * 3);
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const tex = canvasTex(64, 64, c => { const gr = c.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(220,230,255,.8)'); gr.addColorStop(1, 'rgba(200,210,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, 64, 64); });
+  const stars = new THREE.Points(geo, new THREE.PointsMaterial({ size: 3.2, map: tex, transparent: true, depthWrite: false, fog: false, toneMapped: false, blending: THREE.AdditiveBlending }));
+  stars.frustumCulled = false;
+  const moonTex = canvasTex(256, 256, c => {
+    const gr = c.createRadialGradient(128, 128, 40, 128, 128, 128); gr.addColorStop(0, 'rgba(255,246,210,.5)'); gr.addColorStop(1, 'rgba(255,246,210,0)');
+    c.fillStyle = gr; c.fillRect(0, 0, 256, 256);
+    c.fillStyle = '#fff6d6'; c.beginPath(); c.arc(128, 128, 62, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'destination-out'; c.beginPath(); c.arc(156, 108, 56, 0, Math.PI * 2); c.fill();
+  });
+  const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: moonTex, transparent: true, depthWrite: false, fog: false, toneMapped: false }));
+  moon.scale.setScalar(70); moon.position.set(-150, 230, -380);
+  g.add(stars, moon);
+  scene.add(g);
+  return g;
+})();
+export const playerLight = new THREE.PointLight(0xffe2c4, 0, 9, 1.6);
+scene.add(playerLight);
+/** sky, fog, light, bloom and the materials the builders use, for a level's theme */
+export function applyTheme(name) {
+  TH = THEMES[name] || THEMES.meadow;
+  const u = sky.material.uniforms;
+  u.cTop.value.set(TH.sky[0]); u.cMid.value.set(TH.sky[1]); u.cLow.value.set(TH.sky[2]);
+  scene.fog.color.set(TH.fog[0]); scene.fog.near = TH.fog[1]; scene.fog.far = TH.fog[2];
+  hemi.color.set(TH.hemi[0]); hemi.groundColor.set(TH.hemi[1]); hemi.intensity = TH.hemi[2];
+  sun.color.set(TH.sun[0]); sun.intensity = TH.sun[1];
+  scene.environmentIntensity = TH.env;
+  renderer.toneMappingExposure = TH.exposure;
+  bloom.strength = TH.bloom[0]; bloom.threshold = TH.bloom[1];
+  nightSky.visible = TH.stars;
+  playerLight.intensity = TH.playerLight;
+  document.body.style.background = '#' + new THREE.Color(TH.sky[1]).getHexString();
+}
+
 // ---------------------------------------------------------------- textures
 function chevronTex(base, mark, edge, rows = 2) {
   return canvasTex(256, 256 * rows, g => {
@@ -188,18 +255,74 @@ export function slab(parent, len, color, { depth = 3, h = 0.7 } = {}) {
   return g;
 }
 /** floating dirt island with a grass cap; local y = 0 is the walkable top, the cap is w x d */
-export function island(parent, w, d, h, grass = 0x5ec53f) {
-  const g = new THREE.Group();
-  const dirtGeo = colorByY(new RoundedBoxGeometry(w - 0.4, h, d - 0.4, 3, 0.5), -h / 2, h / 2, [[0, 0x7d4a2b], [0.55, 0xa96b3c], [0.9, 0xc98b4f], [1, 0xd99d5c]]);
+export function island(parent, w, d, h, grass = TH.grass) {
+  const g = new THREE.Group(), D = TH.dirt;
+  const dirtGeo = colorByY(new RoundedBoxGeometry(w - 0.4, h, d - 0.4, 3, 0.5), -h / 2, h / 2, [[0, D[0]], [0.55, D[1]], [0.9, D[2]], [1, D[3]]]);
   const dirt = new THREE.Mesh(dirtGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
   dirt.position.y = -0.55 - h / 2;
-  const top = new THREE.Mesh(new RoundedBoxGeometry(w, 0.75, d, 3, 0.32), std(grass, 0.75));
+  const top = new THREE.Mesh(new RoundedBoxGeometry(w, 0.75, d, 3, 0.32), std(grass, TH.tree === 'candy' ? 0.45 : 0.75, TH.grassGlow ? { emissive: grass, emissiveIntensity: TH.grassGlow } : {}));
   top.position.y = -0.36;
   g.add(shade(dirt), shade(top));
+  if (TH.tree === 'candy') {                                   // frosting drips over the cookie edge (front)
+    const dm = std(grass, 0.45);
+    for (let x = -w / 2 + 0.6; x < w / 2 - 0.4; x += rr(0.8, 1.3)) {
+      const drip = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, rr(0.15, 0.55), 4, 10), dm);
+      drip.position.set(x, -0.62 - rr(0, 0.15), d / 2 - 0.06); g.add(shade(drip));
+    }
+  }
   parent.add(g);
   return g;
 }
+const candyTex = {};
+function swirlTex(a, b) {
+  const k = a + b;
+  return (candyTex[k] ||= canvasTex(256, 256, c => {
+    c.fillStyle = b; c.fillRect(0, 0, 256, 256);
+    c.translate(128, 128); c.strokeStyle = a; c.lineWidth = 22; c.lineCap = 'round'; c.beginPath();
+    for (let t = 0; t < 26; t += 0.08) { const r = t * 4.6; c.lineTo(Math.cos(t) * r, Math.sin(t) * r); }
+    c.stroke();
+  }));
+}
+function candyTree(parent, x, z, s, y) {
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * s, 0.07 * s, 1.7 * s, 10), std(0xfff8ef, 0.4));
+  stick.position.y = 0.85 * s; g.add(stick);
+  const cols = [['#ff4f8b', '#ffffff'], ['#7b5cff', '#ffe0f4'], ['#21c7b4', '#fff6c8'], ['#ff9a3c', '#fff3d6']];
+  if (rnd() < 0.55) {                                         // lollipop: a swirl disc facing the camera
+    const [a, b] = cols[(rnd() * cols.length) | 0];
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.72 * s, 0.72 * s, 0.2 * s, 40), [std(0xffffff, 0.3, { color: new THREE.Color(a) }), new THREE.MeshStandardMaterial({ map: swirlTex(a, b), roughness: 0.25 }), new THREE.MeshStandardMaterial({ map: swirlTex(a, b), roughness: 0.25 })]);
+    disc.rotation.x = Math.PI / 2; disc.position.y = 1.95 * s; g.add(disc);
+  } else {                                                     // cotton candy: a fluffy pastel blob
+    const c = [0xffb6dc, 0xb9d8ff, 0xd9c4ff][(rnd() * 3) | 0];
+    const m = std(c, 0.95, { emissive: c, emissiveIntensity: 0.12 });
+    const t1 = new THREE.Mesh(blob(0.78 * s, 0.12), m); t1.position.y = 1.95 * s;
+    const t2 = new THREE.Mesh(blob(0.5 * s, 0.12), m); t2.position.set(0.45 * s, 1.6 * s, 0.1 * s);
+    g.add(t1, t2);
+  }
+  parent.add(shade(g));
+  return g;
+}
+function crystalTree(parent, x, z, s, y) {
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.42 * s, 0), std(0x3a2f6e, 0.8, { flatShading: true }));
+  rock.scale.y = 0.55; rock.position.y = 0.15 * s; g.add(rock);
+  const cols = [0x7df4ff, 0xc39bff, 0xff9be0];
+  const n = 3 + ((rnd() * 3) | 0);
+  for (let i = 0; i < n; i++) {
+    const c = cols[(rnd() * cols.length) | 0], h = rr(0.9, 1.9) * s;
+    const m = new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.55, roughness: 0.2, metalness: 0.1, flatShading: true, transparent: true, opacity: 0.92 });
+    const cr = new THREE.Mesh(new THREE.OctahedronGeometry(0.28 * s, 0), m);
+    cr.scale.set(1, h / (0.56 * s), 1);
+    cr.position.set(rr(-0.35, 0.35) * s, h / 2 + 0.1 * s, rr(-0.25, 0.25) * s);
+    cr.rotation.set(rr(-0.25, 0.25), rr(0, 3), rr(-0.3, 0.3));
+    g.add(cr);
+  }
+  parent.add(shade(g, true, false));
+  return g;
+}
 export function tree(parent, x, z, s = 1, y = 0) {
+  if (TH.tree === 'candy') return candyTree(parent, x, z, s, y);
+  if (TH.tree === 'crystal') return crystalTree(parent, x, z, s, y);
   const g = new THREE.Group(); g.position.set(x, y, z);
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.18 * s, 1.0 * s, 10), std(0x8a5a30, 0.85));
   trunk.position.y = 0.5 * s;
@@ -210,7 +333,26 @@ export function tree(parent, x, z, s = 1, y = 0) {
   parent.add(shade(g));
   return g;
 }
+const gumProf = [[0, 0], [0.34, 0], [0.37, 0.07], [0.31, 0.28], [0.19, 0.42], [0, 0.47]].map(([r, y]) => new THREE.Vector2(r, y));
 export function bush(parent, x, z, s = 1, y = 0) {
+  if (TH.tree === 'candy') {                                   // gumdrops
+    const g = new THREE.Group(); g.position.set(x, y, z);
+    const cols = [0xff4f6d, 0xffc93a, 0x37d39b, 0xa57bff, 0x4fb3ff];
+    for (let i = 0; i < 3; i++) {
+      const m = new THREE.Mesh(new THREE.LatheGeometry(gumProf, 24), std(cols[(rnd() * cols.length) | 0], 0.85));
+      m.scale.setScalar(s * rr(0.8, 1.15)); m.position.set((i - 1) * 0.5 * s, 0, rr(-0.15, 0.15)); g.add(m);
+    }
+    parent.add(shade(g)); return g;
+  }
+  if (TH.tree === 'crystal') {                                 // glowing orbs in the grass
+    const g = new THREE.Group(); g.position.set(x, y, z);
+    for (let i = 0; i < 3; i++) {
+      const c = [0xfff3a0, 0x9ff7ff, 0xffb8ec][i];
+      const o = new THREE.Mesh(new THREE.SphereGeometry(0.13 * s, 14, 10), new THREE.MeshBasicMaterial({ color: c, toneMapped: false }));
+      o.position.set((i - 1) * 0.45 * s, rr(0.15, 0.5) * s, rr(-0.2, 0.2)); g.add(o);
+    }
+    parent.add(g); return g;
+  }
   const leaf = std(rnd() < 0.5 ? 0x4fbb3f : 0x67cf4c, 0.75);
   const g = new THREE.Group(); g.position.set(x, y, z);
   for (let i = 0; i < 3; i++) {
@@ -222,8 +364,20 @@ export function bush(parent, x, z, s = 1, y = 0) {
   return g;
 }
 export const fenceMat = std(0xffc226, 0.42);
+const fenceMats = {};
+function themeFenceMat() {
+  const f = TH.fence, k = JSON.stringify(f);
+  if (fenceMats[k]) return fenceMats[k];
+  if (f.stripes) {                                             // candy cane
+    const t = canvasTex(64, 64, c => { c.fillStyle = '#fff'; c.fillRect(0, 0, 64, 64); c.fillStyle = f.stripes; for (let i = -64; i < 128; i += 32) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i + 14, 0); c.lineTo(i + 14 + 64, 64); c.lineTo(i + 64, 64); c.fill(); } });
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 3);
+    return (fenceMats[k] = new THREE.MeshStandardMaterial({ map: t, roughness: 0.3 }));
+  }
+  return (fenceMats[k] = f.glow ? std(f.color, 0.35, { emissive: f.glow, emissiveIntensity: 0.9 }) : (f.color === 0xffc226 ? fenceMat : std(f.color, 0.42)));
+}
 const postGeo = new THREE.CapsuleGeometry(0.12, 0.72, 4, 12);
 export function fence(parent, a, b) {
+  const fenceMat = themeFenceMat();
   const g = new THREE.Group(), len = a.distanceTo(b), n = Math.max(2, Math.round(len / 1.6) + 1);
   for (let i = 0; i < n; i++) {
     const p = a.clone().lerp(b, i / (n - 1));
@@ -248,7 +402,8 @@ function envelope(s, a, b) {
     pts.push(new THREE.Vector2(Math.max(r, 0.0001) * 1.6 * s, yy * 1.6 * s));
   }
   const tex = canvasTex(512, 32, gg => { for (let i = 0; i < 8; i++) { gg.fillStyle = i % 2 ? b : a; gg.fillRect(i * 64, 0, 64, 32); } });
-  return new THREE.Mesh(new THREE.LatheGeometry(pts, 48), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.42 }));
+  const glow = TH.stars ? { emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.55 } : {};
+  return new THREE.Mesh(new THREE.LatheGeometry(pts, 48), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.42, ...glow }));
 }
 function rope(p0, p1, r, mat) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, p0.distanceTo(p1), 5), mat);
@@ -256,6 +411,18 @@ function rope(p0, p1, r, mat) {
   return m;
 }
 export const balloons = [];
+const lanternProf = [[0, -0.62], [0.22, -0.62], [0.46, -0.42], [0.56, -0.08], [0.54, 0.2], [0.42, 0.48], [0.2, 0.62], [0, 0.62]].map(([r, y]) => new THREE.Vector2(r, y));
+export function lantern(parent, x, y, z, color, s = 1) {
+  const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(s);
+  const body = new THREE.Mesh(new THREE.LatheGeometry(lanternProf, 24), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.1, roughness: 0.6 }));
+  const capM = std(0x4a2f6e, 0.6);
+  for (const yy of [-0.64, 0.64]) { const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.1, 16), capM); cap.position.y = yy; g.add(cap); }
+  const tassel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.06, 0.4, 6), std(0xffc83a, 0.5)); tassel.position.y = -0.9;
+  g.add(body, tassel);
+  g.userData.bob = rr(0, 6.28);
+  parent.add(g); balloons.push(g);
+  return g;
+}
 export function balloon(parent, x, y, z, a, b, prop = false, s = 1) {
   const g = new THREE.Group(); g.position.set(x, y, z);
   const basket = new THREE.Mesh(new RoundedBoxGeometry(0.75 * s, 0.55 * s, 0.75 * s, 2, 0.12 * s), std(0xa86b3a, 0.8));
@@ -424,7 +591,7 @@ export function cloudLayer(parent, x0, x1) {
   // a few low clouds in front, below the course (depth)
   for (let x = x0 - 10; x < x1 + 10; x += rr(22, 34)) cloud(x, rr(-9.5, -7.5), rr(5, 8), rr(1.8, 2.6), 5);
   const geo = new THREE.SphereGeometry(1, 24, 16);
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xc7d3ff, emissiveIntensity: 0.2 });
+  const mat = new THREE.MeshStandardMaterial({ color: TH.cloud[0], roughness: 1, emissive: TH.cloud[1], emissiveIntensity: TH.cloud[2] });
   const im = new THREE.InstancedMesh(geo, mat, puffs.length);
   puffs.forEach((m, i) => im.setMatrixAt(i, m));
   im.instanceMatrix.needsUpdate = true;
@@ -439,12 +606,48 @@ export function farIslands(parent, x0, x1) {
     g.position.set(x + rr(-3, 3), rr(-4, 9), rr(-75, -32));
     for (let i = 0; i < 3; i++) tree(g, rr(-w / 2 + 1.2, w / 2 - 1.2), rr(-d / 2 + 1.2, d / 2 - 1.2), rr(0.8, 1.2));
   }
-  const cols = [['#ff6fa8', '#ffd34d'], ['#7ed96b', '#a57bff'], ['#ff5a5f', '#fff1d6'], ['#4fb3ff', '#ffd34d'], ['#ff8fc8', '#ffffff'], ['#ffd34d', '#6fd16b']];
   let k = 0;
+  if (!TH.balloons) {                                          // night: floating paper lanterns, near and far
+    const lc = [0xffb347, 0xff7fb0, 0x9ff0ff, 0xffe27a];
+    for (let x = x0 - 10; x < x1 + 20; x += rr(7, 12)) lantern(parent, x, rr(5, 13), rr(-34, -10), lc[k++ % lc.length], rr(0.7, 1.2));
+    return;
+  }
   for (let x = x0 - 10; x < x1 + 20; x += rr(22, 30)) {
-    const [a, b] = cols[k++ % cols.length];
+    const [a, b] = TH.balloons[k++ % TH.balloons.length];
     balloon(parent, x, rr(8, 14), rr(-40, -18), a, b, rnd() < 0.4, rr(0.9, 1.2));
   }
+}
+
+// ---------------------------------------------------------------- level gadgets
+/** candy land: a jelly drum that bounces the runner high; local y = 0 is the drum top */
+export function bouncePad(parent) {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.05, 0.5, 32), std(0xffffff, 0.35, { color: new THREE.Color(0x7b5cff) }));
+  base.position.y = -0.3;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.09, 10, 40), std(0xffc93a, 0.35));
+  ring.rotation.x = Math.PI / 2; ring.position.y = -0.05;
+  const jelly = new THREE.Mesh(new THREE.SphereGeometry(0.88, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshPhysicalMaterial({ color: 0xff5fae, roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.1, transmission: 0, sheen: 0.4, emissive: 0xff2f8f, emissiveIntensity: 0.15 }));
+  jelly.scale.y = 0.42; jelly.position.y = -0.08; jelly.name = 'jelly';
+  const shine = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }));
+  shine.scale.set(1.4, 0.5, 0.8); shine.position.set(-0.32, 0.22, 0.4);
+  g.add(base, ring, jelly, shine);
+  parent.add(shade(g));
+  return g;
+}
+/** night: a puffy cloud you can stand on (it sinks while you do); local y = 0 is its top */
+export function cloudPad(parent, w) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color: 0xfff6fb, roughness: 1, emissive: 0xffb8e6, emissiveIntensity: 0.6 });   // brighter and pinker than the sky's clouds: it reads as a step
+  const n = Math.max(3, Math.round(w / 0.8));
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0.5, r = 0.55 + 0.25 * Math.sin(t * Math.PI);
+    const b = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), m);
+    b.scale.set(r, r * 0.62, r * 1.1); b.position.set(-w / 2 + 0.45 + t * (w - 0.9), -r * 0.55, rr(-0.2, 0.2)); g.add(b);
+  }
+  const flat = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 24), m); flat.scale.set(w / 1.0 - 0.1, 1, 1.9); flat.position.y = -0.2; g.add(flat);
+  parent.add(shade(g, true, true));
+  return g;
 }
 
 // ---------------------------------------------------------------- sparkles (a few pooled bursts)

@@ -41,6 +41,12 @@ SCENES = {
             ('tp', 87.5, 1.3), ('press', 'right', True), ('step', 0.3), ('press', 'right', False), ('step', 0.6),
             ('tp', 103, 2.3), ('press', 'right', True), ('step', 0.6), ('press', 'right', False), ('rt', 6), ('shot', 's_turn1'), ('rt', 8), ('shot', 's_turn2'),
             ('rt', 30), ('shot', 's_end'), ('rt', 4), ('shot', 's_clear')],
+    'themes': [('unlock', 0), ('start', 0), ('tp', 14, 0.2), ('step', 0.6), ('shot', 'th1'),
+               ('start', 1), ('tp', 33, 0.2), ('step', 0.6), ('shot', 'th2a'), ('tp', 36, 0.2), ('press', 'right', True), ('step', 0.75), ('shot', 'th2b'), ('step', 0.5), ('press', 'right', False), ('step', 0.4), ('shot', 'th2c'),
+               ('start', 2), ('tp', 12, 0.2), ('step', 0.6), ('shot', 'th3a'), ('tp', 77, 4.0), ('step', 0.4), ('shot', 'th3b'), ('step', 1.2), ('shot', 'th3c'),
+               ('toTitle', 0), ('step', 0.5), ('shot', 'th3title')],
+    'over': [('start', 0), ('tp', 50, 1.3), ('step', 0.3), ('press', 'right', True), ('step', 0.5), ('press', 'right', False), ('step', 0.6),
+             ('tp', 26, 3), ('step', 2.2), ('tp', 26, 3), ('step', 2.2), ('rt', 1.5), ('shot', 'over')],
     'shop': [('rt', 0.5), ('give', 50), ('shopopen', 0), ('rt', 1.2), ('shot', 'shop1'), ('buy', 'crown'), ('buy', 'shades'), ('buy', 'goldshoes'), ('rt', 1.5), ('shot', 'shop2')],
 }
 
@@ -75,6 +81,10 @@ async def main():
                 await page.evaluate('window.PR.shop()')
             elif k == 'buy':
                 await page.evaluate('(id) => window.PR.buy(id)', act[1])
+            elif k == 'unlock':
+                await page.evaluate('window.PR.unlockAll()')
+            elif k == 'toTitle':
+                await page.evaluate('window.PR.toTitle()')
             elif k == 'tp':
                 await page.evaluate('([x, y]) => window.PR.teleport(x, y)', [act[1], act[2]])
             elif k == 'shot':
