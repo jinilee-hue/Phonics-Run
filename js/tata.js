@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { TessellateModifier } from 'three/addons/modifiers/TessellateModifier.js';
+import { SDF, mesh as sdfMesh } from './sdf.js';
 
 export const TATA_COLORS = {
   orange: 0xf8620a, navy: 0x161c40, cream: 0xf5e5d4, teal: 0x05868b, blue: 0x1c46d8, brow: 0x7a3812,
@@ -99,6 +100,33 @@ function colorByHeight(geo, y0, y1, stops) {
     col.set([c.r, c.g, c.b], i * 3);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+}
+
+// ---------------------------------------------------------------- the hand: ONE smooth clay lump (signed distances blended
+// with smin, meshed by Surface Nets) — separate balls and capsules showed seams and lumps (user: "손이 아직도 좀 어색해").
+// Local frame: the wrist at the origin, fingers down (-y), the back of the hand +z, the palm -z, the thumb at -x.
+// Sheet close-up: the forearm flares into a big hand; four SHORT chunky fingers side by side with soft creases between
+// them, tips rounded and a little curled toward the palm; a big round thumb set apart at the inner-front edge.
+let handGeo = null;
+function handGeometry() {
+  if (handGeo) return handGeo;
+  const F = [[-0.082, 0.0], [-0.027, 0.012], [0.027, 0.008], [0.078, -0.02]];   // finger x, extra length
+  const f = (x, y, z) => {
+    const arm = SDF.roundCone(x, y, z, 0, 0.09, 0.0, 0, -0.03, 0.0, 0.1, 0.108);
+    const palm = SDF.ellipsoid(x, y, z, 0, -0.065, -0.004, 0.128, 0.1, 0.084);
+    let fingers = 1e9;
+    for (let i = 0; i < 4; i++) {
+      const [fx, dl] = F[i], r0 = i === 3 ? 0.041 : 0.047, r1 = i === 3 ? 0.036 : 0.042;
+      fingers = Math.min(fingers, SDF.roundCone(x, y, z, fx, -0.1, 0.0, fx * 1.05, -0.2 - dl, -0.038, r0, r1));
+    }
+    const thumb = SDF.roundCone(x, y, z, -0.085, -0.035, 0.01, -0.142, -0.112, 0.036, 0.054, 0.047);
+    let d = SDF.smin(arm, palm, 0.06);
+    d = SDF.smin(d, fingers, 0.03);
+    d = SDF.smin(d, thumb, 0.03);
+    return d;
+  };
+  handGeo = sdfMesh(f, [-0.24, -0.27, -0.16, 0.17, 0.16, 0.16], 0.0055);
+  return handGeo;
 }
 
 // ---------------------------------------------------------------- shirt surface (lathe, local to the torso = hem)
@@ -220,21 +248,9 @@ export class Tata {
       const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.104, 0.1, 8, 16), orange); upper.position.y = -0.06; sh.add(upper);
       const elbow = new THREE.Group(); elbow.position.y = -0.09; sh.add(elbow);
       const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.108, 0.06, 8, 16), orange); fore.position.y = -0.03; elbow.add(fore);
-      const hand = new THREE.Group(); hand.position.set(0, -0.095, 0); hand.rotation.y = Math.atan2(1, s); elbow.add(hand);
-      const wrist = ellipsoid(0.112, 0.07, 0.098, orange, 24); wrist.position.y = 0.02; hand.add(wrist);   // the arm flares into the hand
-      const palm = ellipsoid(0.138, 0.105, 0.092, orange, 32); palm.position.y = -0.04; hand.add(palm);
-      // sheet close-up: four SHORT chunky fingers, side by side with deep creases, tips rounded and a little curled in
-      const fingerGeo = new THREE.CapsuleGeometry(0.05, 0.045, 10, 16);
-      [[-0.078, 0.0], [-0.027, 0.008], [0.025, 0.004], [0.073, -0.016]].forEach(([fx, dl], i) => {
-        const f = new THREE.Mesh(fingerGeo, orange);
-        f.position.set(fx, -0.135 - dl, -0.006);
-        f.rotation.set(0.15, 0, -fx * 0.7);              // curled toward the palm (inner-back): the back of the hand shows
-        if (i === 3) f.scale.set(0.9, 0.85, 0.9);
-        hand.add(f);
-      });
-      // thumb: big and round, set apart on the inner-front edge (front view: inside; side view: in front), tip down and in
-      const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.056, 0.05, 10, 16), orange);
-      thumb.position.set(-0.122, -0.06, 0.022); thumb.rotation.set(0.1, 0, -0.62); hand.add(thumb);
+      // the right hand is the mirror of the left (a 135° turn showed the left palm to the front)
+      const hand = new THREE.Mesh(handGeometry(), orange);
+      hand.position.set(0, -0.095, 0); hand.rotation.y = s * Math.PI / 4; hand.scale.x = s; elbow.add(hand);
       this.arms.push({ s, sh, elbow });
     }
 

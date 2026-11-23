@@ -158,21 +158,22 @@ export const sky = (() => {
 export const THEMES = {
   meadow: {
     sky: [0x0a86e2, 0x1bb7f1, 0xa8eaff], fog: [0x9fdcff, 70, 260], hemi: [0xd3efff, 0xf0d2b0, 0.95], sun: [0xfff0db, 2.9],
-    env: 0.28, exposure: 0.96, bloom: [0.3, 1.1], grass: 0x5ec53f, grassGlow: 0, dirt: [0x7d4a2b, 0xa96b3c, 0xc98b4f, 0xd99d5c],
+    // no bloom by day: the sunlit clouds bled a haze over Tata (user: "캐릭터 위에 뿌옇게")
+    env: 0.28, exposure: 0.96, bloom: [0, 9], grass: 0x5ec53f, grassGlow: 0, dirt: [0x7d4a2b, 0xa96b3c, 0xc98b4f, 0xd99d5c],
     tree: 'round', fence: { color: 0xffc226 }, cloud: [0xffffff, 0xc7d3ff, 0.2],
     balloons: [['#ff6fa8', '#ffd34d'], ['#7ed96b', '#a57bff'], ['#ff5a5f', '#fff1d6'], ['#4fb3ff', '#ffd34d'], ['#ff8fc8', '#ffffff'], ['#ffd34d', '#6fd16b']],
     cardGlow: 0.14, playerLight: 0, stars: false,
   },
   candy: {
     sky: [0x5b4bd0, 0xff7fb4, 0xffc690], fog: [0xffb9b0, 60, 240], hemi: [0xffe0d6, 0xb07ab0, 1.0], sun: [0xffbf94, 2.5],
-    env: 0.3, exposure: 1.0, bloom: [0.36, 1.05], grass: 0xffa6d2, grassGlow: 0, dirt: [0x8c4f2c, 0xc27a3e, 0xe2a462, 0xf2c681],
+    env: 0.3, exposure: 1.0, bloom: [0, 9], grass: 0xffa6d2, grassGlow: 0, dirt: [0x8c4f2c, 0xc27a3e, 0xe2a462, 0xf2c681],
     tree: 'candy', fence: { color: 0xffffff, stripes: '#ff4f6d' }, cloud: [0xfff0f4, 0xffb3cc, 0.28],
     balloons: [['#ff6fa8', '#fff3c4'], ['#ffb347', '#ffffff'], ['#a57bff', '#ffd6f0'], ['#4fd6c8', '#fff3c4'], ['#ff5a7a', '#ffd34d']],
     cardGlow: 0.18, playerLight: 0, stars: false,
   },
   night: {
     sky: [0x0a0b33, 0x28206e, 0x6c4cb4], fog: [0x2c2870, 55, 230], hemi: [0xa8b2ff, 0x3a2a72, 0.95], sun: [0xcfd8ff, 1.8],
-    env: 0.4, exposure: 1.06, bloom: [0.6, 0.92], grass: 0x34cfb0, grassGlow: 0.18, dirt: [0x231c48, 0x352a68, 0x4a3a88, 0x5c4a9e],
+    env: 0.4, exposure: 1.06, bloom: [0.32, 1.25], grass: 0x34cfb0, grassGlow: 0.18, dirt: [0x231c48, 0x352a68, 0x4a3a88, 0x5c4a9e],
     tree: 'crystal', fence: { color: 0x8af4ff, glow: 0x2fc8ff }, cloud: [0xc4c0ff, 0x6a5fd0, 0.4],
     balloons: null, cardGlow: 0.34, playerLight: 22, stars: true,
   },
@@ -214,7 +215,7 @@ export function applyTheme(name) {
   sun.color.set(TH.sun[0]); sun.intensity = TH.sun[1];
   scene.environmentIntensity = TH.env;
   renderer.toneMappingExposure = TH.exposure;
-  bloom.strength = TH.bloom[0]; bloom.threshold = TH.bloom[1];
+  bloom.strength = TH.bloom[0]; bloom.threshold = TH.bloom[1]; bloom.enabled = TH.bloom[0] > 0;
   nightSky.visible = TH.stars;
   playerLight.intensity = TH.playerLight;
   document.body.style.background = '#' + new THREE.Color(TH.sky[1]).getHexString();
