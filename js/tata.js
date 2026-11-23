@@ -22,8 +22,9 @@ function clay(color, rough = 0.62, sheen = 0.1, spec = 0.35) {
   // low specular + light sheen: the sky-blue world light and the env reflections otherwise wash the clay out
   const c = new THREE.Color(color);
   return new THREE.MeshPhysicalMaterial({
-    color: c, roughness: rough, metalness: 0, sheen, sheenRoughness: 0.6, sheenColor: c.clone().lerp(new THREE.Color(0xffffff), 0.15),
-    specularIntensity: spec, envMapIntensity: 0.6,
+    // no sheen: its pale fuzz on every edge read as a haze over Tata in the pink and night light (user: "캐릭터 좀 뿌옇게")
+    color: c, roughness: rough, metalness: 0, sheen: 0,
+    specularIntensity: spec, envMapIntensity: 0.45,
   });
 }
 function ellipsoid(rx, ry, rz, mat, seg = 40) {

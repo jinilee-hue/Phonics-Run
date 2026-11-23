@@ -735,7 +735,7 @@ window.PR = {
   step: dt => tick(dt), press, start: i => startLevel(i ?? G.idx), toTitle, skip: () => endDemo(),
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; P.grounded = false; G.camY = y; cam.x = clampCamX(x + 2); cam.y = y; },
   give(n) { save.wallet = (save.wallet || 0) + n; writeSave(); drawLevels(); },
-  env: E,   // tests: lights, bloom
+  env: E, tata: runner,   // tests: lights, bloom, the character
   sayCard: w => { app.classList.add('saying'); showSayCard(w, 0); const r = $('sayWord').getBoundingClientRect(); return { h: r.height, w: r.width, card: $('sayWord').parentElement.clientWidth, font: getComputedStyle($('sayWord')).fontSize }; },
   unlockAll() { for (const L of LEVELS) save.stars[L.id] = save.stars[L.id] || 1; drawLevels(); },   // tests
   shop: () => $('btnShop').click(), buy: id => shopTap(id, document.body),

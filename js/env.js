@@ -174,9 +174,10 @@ export const THEMES = {
   },
   night: {
     sky: [0x0a0b33, 0x28206e, 0x6c4cb4], fog: [0x2c2870, 55, 230], hemi: [0xa8b2ff, 0x3a2a72, 0.95], sun: [0xcfd8ff, 1.8],
-    env: 0.4, exposure: 1.06, bloom: [0.32, 1.25], grass: 0x34cfb0, grassGlow: 0.18, dirt: [0x231c48, 0x352a68, 0x4a3a88, 0x5c4a9e],
+    // no bloom at night either: it hazed Tata too (the lanterns glow by their own colour)
+    env: 0.4, exposure: 1.06, bloom: [0, 9], grass: 0x34cfb0, grassGlow: 0.18, dirt: [0x231c48, 0x352a68, 0x4a3a88, 0x5c4a9e],
     tree: 'crystal', fence: { color: 0x8af4ff, glow: 0x2fc8ff }, cloud: [0xc4c0ff, 0x6a5fd0, 0.4],
-    balloons: null, cardGlow: 0.34, playerLight: 22, stars: true,
+    balloons: null, cardGlow: 0.34, playerLight: 10, stars: true,
   },
 };
 export let TH = THEMES.meadow;
