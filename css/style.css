@@ -476,3 +476,16 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .joy.guide { animation: guidePulse 1s ease-in-out infinite; }
 .hand.push.show { animation: handPush 1.2s ease-in-out infinite; }
 @keyframes handPush { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(0, calc(-4 * var(--u))); } }
+
+/* the user's logo (Downloads/PhonicsRun_logo.png → assets/img/logo.png, transparent): drops in, then floats */
+.logo-img { width: auto; height: calc(34 * var(--u)); max-width: 70vw; object-fit: contain; margin-top: calc(-2 * var(--u)); pointer-events: none;
+  filter: drop-shadow(0 calc(1 * var(--u)) calc(1.4 * var(--u)) rgba(30,40,110,.3)); animation: logoIn .7s cubic-bezier(.3, 1.5, .5, 1) both, logoFloat 3.2s ease-in-out .7s infinite; }
+@keyframes logoIn { 0% { transform: translateY(-40%) scale(.7); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes logoFloat { 50% { transform: translateY(calc(-1.2 * var(--u))); } }
+
+/* the collected-pictures bar: more room round the tiles inside the plate (user 2026-11-23: "획득 카드 리스트는 틀안에 너무
+   좁게 들어갔어") — a taller plate, smaller tiles, wider gaps; the say-it card sits lower ("단어 카드도 좀 내려도") */
+.slots { height: calc(9.4 * var(--u)); gap: calc(1.3 * var(--u)); padding: 0 calc(2 * var(--u)); top: calc(-.9 * var(--u)); }
+.slot { width: calc(5.6 * var(--u)); height: calc(5.6 * var(--u)); }
+.slot.got { transform: none; }
+.say-card { top: calc(20 * var(--u)); }
