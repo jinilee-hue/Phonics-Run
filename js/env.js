@@ -637,29 +637,35 @@ export function gate(parent) {
   const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), starM);
   star.position.y = H + R + tube + 0.42;
   g.add(arch, pL, pR, star);
-  const w = R - 0.6;
+  const U = portal(g, R - 0.6, H);
+  parent.add(shade(g, true, true));
+  return { group: g, U, star, starM, H, R };
+}
+/** the swirl filling a gate's opening (a box w*2 wide, H tall, under a half circle); colours A → B (rgb 0..1) when awake,
+ *  a dim greyed version of them while asleep */
+export function portal(g, w, H, A = [1.0, 0.36, 0.86], B = [0.32, 0.88, 1.0]) {
   const sh = new THREE.Shape(); sh.moveTo(-w, 0); sh.lineTo(w, 0); sh.lineTo(w, H); sh.absarc(0, H, w, 0, Math.PI, false); sh.lineTo(-w, 0);
   const pg = shapeUV(new THREE.ShapeGeometry(sh, 32), -w, 0, 2 * w, H + w);
-  const U = { uT: { value: 0 }, uFlash: { value: 0 }, uOpen: { value: 0 } };
-  const portal = new THREE.Mesh(pg, new THREE.ShaderMaterial({
+  const U = { uT: { value: 0 }, uFlash: { value: 0 }, uOpen: { value: 0 }, uA: { value: new THREE.Vector3(...A) }, uB: { value: new THREE.Vector3(...B) } };
+  const m = new THREE.Mesh(pg, new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, uniforms: U,
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform float uT, uFlash, uOpen; varying vec2 vUv;
+    fragmentShader: `uniform float uT, uFlash, uOpen; uniform vec3 uA, uB; varying vec2 vUv;
       void main() {
         vec2 p = vec2(vUv.x * 2.0 - 1.0, vUv.y * 1.5 - 0.62);
         float r = length(p), a = atan(p.y, p.x);
         float sw = sin(a * 3.0 + r * 9.0 - uT * (0.8 + 2.4 * uOpen));
-        vec3 c = mix(vec3(1.0, 0.36, 0.86), vec3(0.32, 0.88, 1.0), 0.5 + 0.5 * sw);
+        vec3 c = mix(uA, uB, 0.5 + 0.5 * sw);
         c = mix(c, vec3(1.0, 0.97, 1.0), smoothstep(0.55, 0.0, r) * 0.75);
-        vec3 shut = mix(vec3(0.36, 0.33, 0.62), vec3(0.5, 0.52, 0.78), 0.5 + 0.5 * sw);   // closed: a slow dim swirl
+        vec3 sa = mix(vec3(0.36, 0.33, 0.62), uA, 0.3) * 0.9, sb = mix(vec3(0.5, 0.52, 0.78), uB, 0.3);
+        vec3 shut = mix(sa, sb, 0.5 + 0.5 * sw);                                     // closed: a slow dim swirl
         c = mix(shut, c * (1.25 + uFlash * 2.0), uOpen);
         gl_FragColor = vec4(c, mix(0.72, 0.9, uOpen));
       }`,
   }));
-  portal.position.z = 0.05;
-  g.add(portal);
-  parent.add(shade(g, true, true));
-  return { group: g, U, star, starM, H, R };
+  m.position.z = 0.05; m.castShadow = false;
+  g.add(m);
+  return U;
 }
 
 // ---------------------------------------------------------------- clouds and far islands around a course

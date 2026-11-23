@@ -134,7 +134,7 @@ export function buildLevel(L, side = false) {
       plats.push(box(d0, d1, top, -PH, PH, { solid: true, bottom: top - 7 }));
       if (kind === 'end') {
         const gd = d1 - 6;
-        const G = E.gate(root);
+        const G = W.gate(root, th);
         // the portal faces where the camera is: +z behind Tata (back view), +x across the course (side view)
         const n = side ? { x: 1, z: 0 } : { x: 0, z: 1 };
         const gx = side ? -1.3 : 0;

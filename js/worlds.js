@@ -9,6 +9,7 @@
 // beside the path).
 import * as THREE from 'three';
 import * as E from './env.js';
+import * as C from './critters.js';
 const { V, rr, rnd, std, shade, canvasTex, blob, RoundedBoxGeometry } = E;
 
 export const PATH_W = 4.8, GROUND_W = 16;
@@ -355,59 +356,142 @@ function galaxy(parent, x, y, z, s, hue) {
 }
 
 // ---------------------------------------------------------------- big things far beside the course
+// the land beside the course (user 2026-11-23: "맵에 배경들 어울리게 — 집이 나오는게 좀 어색해": things stood on nothing):
+// a field on each side at FIELD_Y, a little lower than the path, rolling gently away from it, coloured per world;
+// its inner edge drops as a cliff where the course has a gap. Scenery stands ON it.
+const FIELD_Y = -1.0;
+const FIELD = {
+  forest: { top: [0x6bcb4c, 0x86d65c, 0x5cb945], side: [0x8a5a30, 0x6a4020] },
+  candy: { top: [0xffb5d6, 0xffc7e0, 0xffa6cc], side: [0x6c3a20, 0x4a2414] },
+  snow: { top: [0xf4f9ff, 0xffffff, 0xe2eefb], side: [0x9cc8ee, 0x6aa6dc] },
+  desert: { top: [0xf0c072, 0xf6d08c, 0xe4b062], side: [0xc68650, 0xa86a36] },
+};
+function field(parent, theme, dEnd) {
+  const F = FIELD[theme]; if (!F) return;
+  const L = dEnd + 140, z0 = 40, W = 90, segX = 36, segZ = Math.round(L / 3);
+  for (const side of [-1, 1]) {
+    const geo = new THREE.PlaneGeometry(W, L, segX, segZ); geo.rotateX(-Math.PI / 2);
+    const p = geo.getAttribute('position'), col = new Float32Array(p.count * 3), c = new THREE.Color(), a = new THREE.Color(F.top[0]), b = new THREE.Color(F.top[1]), d = new THREE.Color(F.top[2]);
+    for (let i = 0; i < p.count; i++) {
+      const wx = p.getX(i) + side * (GROUND_W / 2 + W / 2), z = p.getZ(i) + z0 - L / 2;   // world x, z
+      const lx = Math.abs(wx) - GROUND_W / 2;                                    // lx: 0 at the course's edge → W away
+      const h = fieldY(wx, z) - FIELD_Y;                                         // flat by the course, rolling further out
+      p.setY(i, h);
+      const t = 0.5 + 0.5 * Math.sin(z * 0.21 + lx * 0.17);
+      c.copy(a).lerp(t > 0.5 ? b : d, Math.abs(t - 0.5) * 1.2); col.set([c.r, c.g, c.b], i * 3);
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: theme === 'snow' ? 0.6 : 0.9 }));
+    m.position.set(side * (GROUND_W / 2 + W / 2), FIELD_Y, z0 - L / 2); m.receiveShadow = true; parent.add(m);
+    const cliff = new THREE.Mesh(new THREE.BoxGeometry(1.2, 8, L), new THREE.MeshStandardMaterial({ color: F.side[0], roughness: 0.9 }));
+    cliff.position.set(side * (GROUND_W / 2 + 0.6), FIELD_Y - 4, z0 - L / 2); parent.add(cliff);
+  }
+}
+/** the field's height at (x, z) for something standing there (the same sum as above) */
+function fieldY(x, z) {
+  const lx = Math.abs(x) - GROUND_W / 2, rise = Math.min(1, Math.max(0, (lx - 6) / 18));
+  return FIELD_Y + rise * (1.4 * Math.sin(z * 0.11 + lx * 0.07) + 1.1 * Math.sin(z * 0.05 - lx * 0.13) + 0.6 * Math.sin(lx * 0.31 + z * 0.19) + 1.2);
+}
+const onField = (parent, x, z) => { const g = new THREE.Group(); g.position.set(x, fieldY(x, z) - 0.05, z); parent.add(g); return g; };
+
+// animal friends and little set pieces (critters.js) at the near edge of the fields, alternating sides, facing the course
+// and the camera; birds / butterflies / saucers circle above. Returns the spots taken so the scenery keeps clear of them.
+const FRIENDS = {
+  forest: { ground: [[() => C.bunny(), 1.5, 2], [() => C.bunny(0xe0bf94), 1.5, 1], [() => C.pond(), 1.15, 0, 2.2]], fly: [() => C.bird(pick([0x5aa8ff, 0xff8a5a, 0xffd447])), 1.6, 3], flutter: [() => C.butterfly(pick([0xff8cc6, 0x7fd8ff, 0xffd447]), pick([0xffffff, 0xffd447, 0xc59bff])), 1.8, 5] },
+  candy: { ground: [[() => C.gummyBear(pick([0xff5f7e, 0x5fd08a, 0xffb43a, 0xa77cff, 0x4fb6ff])), 1.4, 3], [() => C.gumballMachine(), 1.25, 0, 1.2]], flutter: [() => C.butterfly(pick([0xff8cbf, 0xae8cff, 0x63d9ad]), pick([0xffd447, 0xffffff, 0x6fbcff])), 1.8, 5] },
+  snow: { ground: [[() => C.penguin(pick([0xff4f6d, 0x4f8fff, 0xffc83a, 0x3fcf9c])), 1.5, 3], [() => C.polarBear(), 1.45, 1], [() => C.igloo(), 1.0, 0, 2.4]] },
+  desert: { ground: [[() => C.camel(), 1.3, 1, 1.2], [() => C.meerkats(3), 1.45, 0, 1.3]] },
+  space: { rock: [[() => C.alien(pick([0x7be86a, 0xc59bff, 0x6fd8ff])), 1.5, 2], [() => C.rocket(), 1.0, 0, 1]], fly: [() => C.ufo(), 1.6, 3] },
+};
+function friends(parent, theme, dEnd) {
+  const F = FRIENDS[theme], spots = []; if (!F) return spots;
+  const faceYaw = side => (SIDE ? Math.PI / 2 + rr(-0.35, 0.35) : -side * rr(0.45, 0.85));   // toward the course and the camera
+  let n = 0;
+  for (let d = 4; d < dEnd + 6; d += rr(12, 17), n++) {
+    const side = SIDE ? -1 : (n % 2 ? 1 : -1), list = F.ground || F.rock, [make, s, crowd = 0, big = 0] = list[n % list.length];
+    const x = side * (rr(9.8, 11.2) + big), z = -d;
+    let g;
+    if (F.rock) { g = C.spaceRock(1.3 + 0.8 * crowd * 0.5 + big * 0.4); g.position.set(x + side * 1.6, rr(-0.6, 1.0), z); g.userData.cr = { k: 'float', y0: g.position.y, yaw: 0, w: 1 }; parent.add(g); }
+    else g = onField(parent, x, z);
+    const yaw = faceYaw(side);
+    for (let i = 0; i <= crowd; i++) {                                                     // a little crowd of friends
+      const o = make(), off = crowd ? (i - crowd / 2) * 1.25 : 0;
+      o.scale.setScalar(s * (i && crowd ? rr(0.8, 0.95) : 1)); o.rotation.y = yaw + rr(-0.25, 0.25);
+      o.position.set(Math.cos(yaw) * off, 0, -Math.sin(yaw) * off + (crowd ? rr(-0.4, 0.4) : 0));
+      if (crowd && !F.rock) o.position.y = fieldY(x + o.position.x, z + o.position.z) - fieldY(x, z);
+      g.add(o);
+    }
+    spots.push([g.position.x, z, 1.4 + crowd * 0.6 + big * 1.4]);
+  }
+  for (const key of ['fly', 'flutter']) {                                              // birds / butterflies / saucers
+    if (!F[key]) continue;
+    const [make, s, count] = F[key];
+    for (let i = 0; i < count; i++) {
+      const o = make(), side = SIDE ? -1 : (i % 2 ? 1 : -1), c = o.userData.cr;
+      o.scale.setScalar(s);
+      const d = rr(8, dEnd - 4);
+      Object.assign(c, key === 'fly' ? { cx: side * rr(12, 16), cy: theme === 'space' ? rr(3.5, 7) : rr(4.5, 7.5), cz: -d, r: rr(3, 5) }
+        : { cx: side * rr(9.8, 12), cy: FIELD_Y + rr(1.3, 2.1), cz: -d });
+      parent.add(o);
+    }
+  }
+  return spots;
+}
+
 export function backdrop(parent, theme, dEnd) {
-  const zs = []; for (let d = -10; d < dEnd + 30; d += rr(11, 16)) zs.push(-d);
+  const zs = []; for (let d = -10; d < dEnd + 30; d += rr(9, 13)) zs.push(-d);
+  field(parent, theme, dEnd);
+  const spots = friends(parent, theme, dEnd), busy = (x, z) => spots.some(([sx, sz, r]) => Math.hypot(x - sx, z - sz) < r + 2.2);
   if (theme === 'forest') {
     for (const z of zs) for (const side of SIDES()) {
-      const x = side * rr(13, 22);
-      const hill = E3(rr(6, 9), rr(3, 5), rr(5, 7), std(pick([0x6bcb4c, 0x5cb945, 0x7ad65a]), 0.85), 24); hill.position.set(x * 1.3, -2.5, z); parent.add(hill);
-      const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
-      const k = rnd();
-      if (k < 0.35) E.tree(g, 0, 0, rr(1.6, 2.4)); else if (k < 0.6) mushroom(g, 0, 0, rr(1.6, 2.6)); else if (k < 0.8) pipe(g, 0, 0, rr(1.4, 2)); else E.tree(g, 0, 0, rr(1.3, 1.8));
-      g.position.y = rr(-0.5, 0.5);
+      const x = side * rr(12, 22); if (busy(x, z)) continue; const g = onField(parent, x, z), k = rnd();
+      if (k < 0.4) { E.tree(g, 0, 0, rr(1.6, 2.4)); E.bush(g, rr(1.2, 2), rr(-1, 1), rr(1, 1.4)); }
+      else if (k < 0.62) { mushroom(g, 0, 0, rr(1.6, 2.6)); mushroom(g, rr(1.4, 2.2), rr(-1, 1), rr(0.8, 1.2)); }
+      else if (k < 0.8) pipe(g, 0, 0, rr(1.4, 2)); else { E.tree(g, 0, 0, rr(1.3, 1.8)); E.tree(g, rr(-2.5, -1.5), rr(-1.5, 1.5), rr(1.1, 1.5)); }
     }
-    waterfall(parent, far(11), -1, -38); waterfall(parent, -12, -1, -84);
+    waterfall(parent, far(15), fieldY(15, -38) - 0.2, -38); waterfall(parent, -16, fieldY(16, -84) - 0.2, -84);
   } else if (theme === 'candy') {
+    // the chocolate river runs along the far field; chocolate hills, giant sweets and gumdrops stand on the frosting
+    const river = new THREE.Mesh(new THREE.PlaneGeometry(9, dEnd + 120), gloss(0x5a2e1a, { roughness: 0.18, clearcoat: 1 }));
+    river.rotation.x = -Math.PI / 2; river.position.set(-19, FIELD_Y + 0.06, -dEnd / 2 + 20); river.name = 'river'; parent.add(river);
     for (const z of zs) for (const side of SIDES()) {
-      const x = side * rr(14, 24), k = rnd();
-      if (k < 0.45) chocHill(parent, x * 1.2, z, rr(1, 1.6));
-      else if (k < 0.7) gingerHouse(parent, x, z, rr(1.1, 1.5));
-      else if (k < 0.85) candyCane(parent, x, z, rr(2.2, 3), side);
-      else { const c = new THREE.Group(); c.position.set(x, 0, z); E.lollipop(c, rr(2.4, 3.2)); parent.add(shade(c)); }
+      const x = side * (side < 0 ? rr(25, 34) : rr(12, 22)); if (busy(x, z)) continue; const g = onField(parent, x, z), k = rnd();
+      if (k < 0.3) chocHill(g, rr(-2, 2), 0, rr(0.9, 1.4));
+      else if (k < 0.5) { const c = new THREE.Group(); E.lollipop(c, rr(2.4, 3.2)); g.add(shade(c)); }
+      else if (k < 0.68) { const c = new THREE.Group(); E.cupcake(c, rr(2.2, 3)); g.add(shade(c)); }
+      else if (k < 0.82) candyCane(g, 0, 0, rr(2.2, 3), side);
+      else E.bush(g, 0, 0, rr(2, 2.8));                                          // a heap of gumdrops
     }
-    // the chocolate river beside the course
-    const river = new THREE.Mesh(new THREE.PlaneGeometry(14, dEnd + 80), gloss(0x5a2e1a, { roughness: 0.18, clearcoat: 1 }));
-    river.rotation.x = -Math.PI / 2; river.position.set(far(16), -1.2, -dEnd / 2); river.name = 'river'; parent.add(river);
+    if (!SIDE) for (const z of zs.filter((_, i) => i % 2)) { const x = rr(-16, -12); if (busy(x, z)) continue; const g = onField(parent, x, z); E.bush(g, 0, 0, rr(1.4, 1.8)); }   // gumdrops by the river
   } else if (theme === 'snow') {
     for (const z of zs) for (const side of SIDES()) {
-      const x = side * rr(14, 22), k = rnd(), g = new THREE.Group(); g.position.set(x, rr(-0.5, 1), z); parent.add(g);
-      if (k < 0.35) cabin(g, 0, 0, rr(1.1, 1.4)); else if (k < 0.75) { pine(g, 0, 0, rr(1.8, 2.6)); pine(g, rr(-2, 2), rr(-2, 2), rr(1.4, 2)); } else snowman(g, 0, 0, rr(1.4, 1.8), side);
+      const x = side * rr(12, 22); if (busy(x, z)) continue; const g = onField(parent, x, z), k = rnd();
+      if (k < 0.3) cabin(g, 0, 0, rr(1.1, 1.4)); else if (k < 0.75) { pine(g, 0, 0, rr(1.8, 2.6)); pine(g, rr(-2.5, 2.5), rr(-2, 2), rr(1.4, 2)); } else snowman(g, 0, 0, rr(1.4, 1.8), side);
     }
-    for (let d = 20; d < dEnd + 80; d += rr(26, 40)) for (const side of [-1, 1]) mountain(parent, far(side * rr(35, 60)), -d - 30, rr(14, 24));
+    for (let d = 20; d < dEnd + 80; d += rr(26, 40)) for (const side of [-1, 1]) mountain(parent, far(side * rr(42, 65)), -d - 30, rr(14, 24));
   } else if (theme === 'desert') {
     for (const z of zs) for (const side of SIDES()) {
-      const x = side * rr(13, 22), k = rnd(), g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
-      const dune = E3(rr(6, 10), rr(2, 3.5), rr(5, 8), std(0xf0c072, 0.95), 24); dune.position.set(x * 0.4, -1.5, 0); g.add(dune);
-      if (k < 0.3) arch(g, 0, 0, rr(1.2, 1.6)); else if (k < 0.55) { palm(g, 0, 0, rr(1.4, 1.8)); palm(g, 1.5, 1, rr(1.1, 1.5)); } else if (k < 0.75) tent(g, 0, 0, rr(1.2, 1.6)); else cactus(g, 0, 0, rr(1.5, 2));
+      const x = side * rr(12, 22); if (busy(x, z)) continue; const g = onField(parent, x, z), k = rnd();
+      if (k < 0.3) arch(g, 0, 0, rr(1.2, 1.6)); else if (k < 0.55) { palm(g, 0, 0, rr(1.4, 1.8)); palm(g, 1.5, 1, rr(1.1, 1.5)); } else if (k < 0.75) tent(g, 0, 0, rr(1.2, 1.6)); else { cactus(g, 0, 0, rr(1.5, 2)); cactus(g, rr(1.2, 2), rr(-1, 1), rr(0.9, 1.3)); }
     }
-    for (let d = 25; d < dEnd + 80; d += rr(30, 45)) for (const side of [-1, 1]) pyramid(parent, far(side * rr(40, 65)), -d - 30, rr(14, 22));
-    oasis(parent, -13, -0.9, -60);
+    for (let d = 25; d < dEnd + 80; d += rr(30, 45)) for (const side of [-1, 1]) pyramid(parent, far(side * rr(45, 70)), -d - 30, rr(14, 22));
+    oasis(parent, -15, fieldY(-15, -60) + 0.05, -60);
   } else {
     const cols = [['#e8a25e', '#c4743c', 0xf2d6a8], ['#8f7cff', '#6a54d8', null], ['#ff8fbf', '#d9609a', 0xffc8e0], ['#7fd0ff', '#4a9be0', null], ['#ffd36b', '#e8a02a', 0xfff0c0]];
     let k = 0;
     for (let d = 10; d < dEnd + 40; d += rr(18, 28)) { const [a, b, ring] = cols[k++ % cols.length]; planet(parent, far((k % 2 ? -1 : 1) * rr(24, 40)), rr(6, 20), -d, rr(3, 7), a, b, ring); }
     for (let d = 20; d < dEnd + 60; d += rr(30, 45)) galaxy(parent, SIDE ? rr(-70, -40) : rr(-50, 50), rr(18, 40), SIDE ? -d : -d - 60, rr(30, 50), (d * 7) % 360);
-    for (const z of zs) for (const side of SIDES()) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.8, 2.2), 0), std(0x5e508a, 0.9, { flatShading: true })); r.position.set(side * rr(10, 24), rr(-3, 8), z); r.rotation.set(rr(0, 3), rr(0, 3), 0); r.userData.spin = rr(-0.3, 0.3); r.name = 'asteroid'; parent.add(r); }
+    for (const z of zs) for (const side of SIDES()) { const x = side * rr(10, 24); if (busy(x, z)) continue; const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.8, 2.2), 0), std(0x5e508a, 0.9, { flatShading: true })); r.position.set(x, rr(-3, 8), z); r.rotation.set(rr(0, 3), rr(0, 3), 0); r.userData.spin = rr(-0.3, 0.3); r.name = 'asteroid'; parent.add(r); }
   }
 }
 function mountain(parent, x, z, s) {
-  const m = new THREE.Group(); m.position.set(x, -4, z);
+  const m = new THREE.Group(); m.position.set(x, FIELD_Y - 1, z);
   const body = new THREE.Mesh(new THREE.ConeGeometry(s, s * 1.3, 7, 1), std(0x9cc0e8, 0.9, { flatShading: true })); body.position.y = s * 0.65; m.add(body);
   const cap = new THREE.Mesh(new THREE.ConeGeometry(s * 0.45, s * 0.6, 7, 1), std(0xffffff, 0.9, { flatShading: true })); cap.position.y = s * 1.3 - s * 0.3 + 0.01; m.add(cap);
   parent.add(m);
 }
 function pyramid(parent, x, z, s) {
-  const p = new THREE.Mesh(new THREE.ConeGeometry(s, s * 0.95, 4, 1), std(0xe8bc7a, 0.9, { flatShading: true })); p.rotation.y = Math.PI / 4; p.position.set(x, s * 0.475 - 3, z); parent.add(p);
+  const p = new THREE.Mesh(new THREE.ConeGeometry(s, s * 0.95, 4, 1), std(0xe8bc7a, 0.9, { flatShading: true })); p.rotation.y = Math.PI / 4; p.position.set(x, s * 0.475 + FIELD_Y - 0.5, z); parent.add(p);
 }
 function oasis(parent, x, y, z) {
   const g = new THREE.Group(); g.position.set(x, y, z);
@@ -542,10 +626,11 @@ export function updateWorld(dt, T, root, camPos) {
     snowfall.position.set(camPos.x, camPos.y - 5, camPos.z - 12);
   }
   if (root && !root.userData.anim) {                           // (collected once per level, not searched every frame)
-    const a = root.userData.anim = []; root.traverse(o => { if (o.name === 'falls' || o.name === 'asteroid' || o.name === 'smoke') a.push(o); });
+    const a = root.userData.anim = []; root.traverse(o => { if (o.name === 'falls' || o.name === 'asteroid' || o.name === 'smoke' || o.userData.cr) a.push(o); });
   }
   for (const o of root?.userData.anim || []) {
-    if (o.name === 'falls') o.material.map.offset.y -= dt * 1.2;
+    if (o.userData.cr) C.updateCritter(o, T);
+    else if (o.name === 'falls') o.material.map.offset.y -= dt * 1.2;
     else if (o.name === 'asteroid') { o.rotation.x += dt * o.userData.spin; o.rotation.y += dt * o.userData.spin * 0.7; }
     else { for (const p of o.children) { p.position.y = (p.position.y + dt * 0.4) % 1.2; p.material.opacity = 0.8 * (1 - p.position.y / 1.2); } }
   }
@@ -629,3 +714,171 @@ export function startPad(parent, R, theme) {
   parent.add(g);
   return g;
 }
+
+// ---------------------------------------------------------------- the goal gate, dressed for each world (user 2026-11-23:
+// "문들도 맵 무드에 맞게"): the same size and swirl as before, a frame made of the world's own stuff, a swirl in the
+// world's colours and its own ornament on top (it lights up and spins faster once all the pictures are in — game.js)
+const GATE_SWIRL = {
+  forest: [[0.36, 0.86, 0.42], [1.0, 0.86, 0.3]],
+  candy: [[1.0, 0.36, 0.86], [0.32, 0.88, 1.0]],
+  snow: [[0.36, 0.8, 1.0], [0.84, 0.78, 1.0]],
+  desert: [[0.12, 0.8, 0.76], [1.0, 0.74, 0.28]],
+  space: [[0.62, 0.34, 1.0], [0.3, 0.95, 1.0]],
+};
+export function gate(parent, theme) {
+  const g = new THREE.Group(), R = 2.7, H = 2.6;
+  const star = new THREE.Group(); star.position.y = H + R + 1.0;
+  const starM = (GATE_FRAME[theme] || GATE_FRAME.forest)(g, R, H, star);
+  g.add(star); shade(g, true, true);
+  const U = E.portal(g, R - 0.6, H, ...(GATE_SWIRL[theme] || GATE_SWIRL.candy));
+  parent.add(g);
+  return { group: g, U, star, starM, H, R };
+}
+const along = (R, H, a, r = R) => [Math.cos(a) * r, H + Math.sin(a) * r];   // a point on the arch at angle a (0 right → π left)
+function chubbyStar(m, r = 0.55) {
+  const geo = once('gstar', () => {
+    const s = new THREE.Shape();
+    for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? 0.5 : 1; i ? s.lineTo(Math.cos(a) * q, Math.sin(a) * q) : s.moveTo(Math.cos(a) * q, Math.sin(a) * q); }
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.16, bevelSize: 0.14, bevelSegments: 5, curveSegments: 4 }); g.center(); return g;
+  });
+  const o = new THREE.Mesh(geo, m); o.scale.setScalar(r); return o;
+}
+/** voussoirs: n blocks round the arch; mk(i) → a mesh whose local x runs along the arch and local y outward */
+function blocksRound(g, R, H, n, mk) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI * (i + 0.5) / n, b = mk(i, a); const [x, y] = along(R, H, a);
+    b.position.set(x, y, 0); b.rotation.z = a - Math.PI / 2; g.add(b);
+  }
+}
+const GATE_FRAME = {
+  // FOREST: two tree trunks with roots and ivy, a log arch overgrown with leaves and flowers, mushrooms at the feet
+  forest(g, R, H, top) {
+    const barkV = once('barkV', () => { const t = canvasTex(64, 128, c => { c.fillStyle = '#93602f'; c.fillRect(0, 0, 64, 128); for (let i = 0; i < 26; i++) { c.fillStyle = `rgba(70,36,12,${0.25 + Math.random() * 0.35})`; c.fillRect(Math.random() * 64, Math.random() * 128, 3 + Math.random() * 3, 20 + Math.random() * 50); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 1); return t; });
+    const bark = new THREE.MeshStandardMaterial({ map: barkV, roughness: 0.85 });
+    const logT = barkV.clone(); logT.needsUpdate = true; logT.rotation = Math.PI / 2; logT.repeat.set(1, 12);
+    const leafM = [std(0x4fb83e, 0.75), std(0x6fcf4c, 0.75), std(0x3fa23a, 0.75)];
+    for (const sx of [-1, 1]) {
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.6, H + 0.3, 20), bark); trunk.position.set(sx * R, (H + 0.3) / 2 - 0.05, 0); g.add(trunk);
+      for (let i = 0; i < 5; i++) {                                                  // roots spreading into the ground
+        const a = i / 5 * Math.PI * 2 + 0.3, root = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.55, 4, 10), bark);
+        root.position.set(sx * R + Math.cos(a) * 0.62, 0.12, Math.sin(a) * 0.62); root.rotation.set(Math.sin(a) * 1.2, 0, -Math.cos(a) * 1.2); g.add(root);
+      }
+      for (let i = 0; i < 11; i++) {                                                 // ivy spiralling up the trunk
+        const a = i * 1.15 + (sx > 0 ? 0 : 1.6), y = 0.35 + i * 0.21, rad = 0.6 - y * 0.05;
+        const l = E3(0.17, 0.11, 0.08, leafM[i % 3], 10); l.position.set(sx * R + Math.cos(a) * rad, y, Math.sin(a) * rad); l.rotation.set(0, -a, 0.6); g.add(l);
+      }
+      mushroom(g, sx * (R + 1.05), 0.55, 0.75, sx < 0 ? '#ff4a4a' : '#a767ff'); mushroom(g, sx * (R + 0.6), 1.05, 0.48, '#ff7fb0');
+    }
+    const log = new THREE.Mesh(new THREE.TorusGeometry(R, 0.42, 16, 60, Math.PI), new THREE.MeshStandardMaterial({ map: logT, roughness: 0.85 })); log.position.y = H; g.add(log);
+    for (let i = 0; i < 9; i++) {                                                    // leafy clumps over the log
+      const a = Math.PI * (i + 0.5) / 9 + rr(-0.05, 0.05), [x, y] = along(R, H, a, R + rr(0.12, 0.3));
+      for (let k = 0; k < 2; k++) { const l = E3(rr(0.42, 0.6), rr(0.34, 0.46), rr(0.4, 0.55), leafM[(i + k) % 3], 16); l.position.set(x + rr(-0.15, 0.15), y + rr(-0.1, 0.15), k ? -0.2 : 0.22); g.add(l); }
+    }
+    const pet = [std(0xff8fc0, 0.5), std(0xffffff, 0.5), std(0xffd447, 0.5)], mid = std(0xffc21f, 0.45);
+    for (let i = 0; i < 8; i++) {                                                    // little flowers on the leaves (front)
+      const a = Math.PI * (i + 0.5) / 8 + rr(-0.08, 0.08), [x, y] = along(R, H, a, R + rr(0.3, 0.55)), f = new THREE.Group();
+      f.position.set(x, y, 0.62); f.rotation.z = rr(0, 1);
+      for (let k = 0; k < 5; k++) { const p = E3(0.1, 0.065, 0.04, pet[i % 3], 8); const b = k / 5 * Math.PI * 2; p.position.set(Math.cos(b) * 0.1, Math.sin(b) * 0.1, 0); p.rotation.z = b; f.add(p); }
+      const c = E3(0.06, 0.06, 0.05, mid, 8); c.position.z = 0.03; f.add(c); g.add(f);
+    }
+    const crown = E3(0.75, 0.42, 0.6, leafM[1], 18); crown.position.y = H + R + 0.38; g.add(crown);   // a leafy nest for the star
+    const starM = new THREE.MeshPhysicalMaterial({ color: 0xffd23f, emissive: 0xffb300, emissiveIntensity: 0.15, roughness: 0.3, clearcoat: 1 });
+    top.add(chubbyStar(starM, 0.58));
+    return starM;
+  },
+  // CANDY: candy-cane columns on chocolate bases, a glazed pink donut arch with sprinkles and cream pearls, a lollipop
+  candy(g, R, H, top) {
+    const t = stripeTex('#ffffff', '#ff3b4e', 4).clone(); t.needsUpdate = true; t.repeat.set(2, 2.2);
+    const cane = new THREE.MeshPhysicalMaterial({ map: t, roughness: 0.25, clearcoat: 1 });
+    const choc = gloss(0x6c3a20, { roughness: 0.35 }), cream = gloss(0xfffaf4);
+    for (const sx of [-1, 1]) {
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, H, 28), cane); col.position.set(sx * R, H / 2, 0); g.add(col);
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.86, 0.42, 28), choc); base.position.set(sx * R, 0.21, 0); g.add(base);
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; const d = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, rr(0.06, 0.18), 4, 8), cream); d.position.set(sx * R + Math.cos(a) * 0.8, 0.36, Math.sin(a) * 0.8); g.add(d); }
+      const gum = new THREE.Group(); E.bush(gum, 0, 0, 0.55); gum.position.set(sx * (R + 1.0), 0, 0.5); g.add(gum);
+    }
+    const glaze = E.candyM(0xff8cc6);
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(R, 0.56, 20, 72, Math.PI), glaze); arch.position.y = H; g.add(arch);
+    const dough = new THREE.Mesh(new THREE.TorusGeometry(R, 0.5, 16, 72, Math.PI), std(0xe0a060, 0.7)); dough.position.set(0, H, -0.12); g.add(dough);
+    const pts = [];
+    for (let i = 0; i < 120; i++) {
+      const a = rr(0.08, Math.PI - 0.08), tu = rr(-0.2, 2.2), r = 0.58, rad = R + Math.cos(tu) * r;
+      pts.push([Math.cos(a) * rad, H + Math.sin(a) * rad, Math.sin(tu) * r]);
+    }
+    g.add(E.sprinkleMesh(pts, 1.6));
+    for (let i = 0; i < 17; i++) { const [x, y] = along(R, H, Math.PI * (i + 0.5) / 17, R + 0.56); const p = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), cream); p.position.set(x, y, 0.18); g.add(p); }
+    const face = new THREE.MeshStandardMaterial({ map: E.swirlTex2('#ff5f9e', '#ffffff'), emissive: 0x9a7a88, emissiveMap: E.swirlTex2('#ff5f9e', '#ffffff'), emissiveIntensity: 0.15, roughness: 0.25 });
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.18, 36), [E.candyM(0xff8cbf), face, face]); disc.rotation.x = Math.PI / 2; disc.position.y = 0.2; top.add(disc);
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.8, 10), std(0xfffaf2, 0.35)); stick.position.y = -0.55; top.add(stick);
+    return face;
+  },
+  // SNOW: stacked ice blocks, an ice-block arch under a snow cap with icicles, snow heaps at the feet, a snowflake
+  snow(g, R, H, top) {
+    const ice = [gloss(0xc9ecff, { transparent: true, opacity: 0.94 }), gloss(0xa9dcff, { transparent: true, opacity: 0.94 })];
+    const snow = std(0xffffff, 0.85);
+    for (const sx of [-1, 1]) {
+      for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new RoundedBoxGeometry(1.2, H / 3 - 0.04, 1.2, 3, 0.14), ice[(i + (sx > 0)) % 2]); b.position.set(sx * R + rr(-0.05, 0.05), (i + 0.5) * H / 3, 0); b.rotation.y = rr(-0.08, 0.08); g.add(b); }
+      for (let k = 0; k < 4; k++) { const h = E3(rr(0.45, 0.75), rr(0.3, 0.45), rr(0.45, 0.7), snow, 14); h.position.set(sx * (R + rr(0.3, 1.1)), 0.05, rr(-0.6, 0.7)); g.add(h); }
+    }
+    blocksRound(g, R, H, 9, i => new THREE.Mesh(new RoundedBoxGeometry(0.9, 1.0, 1.2, 3, 0.14), ice[i % 2]));
+    for (let i = 0; i < 12; i++) {                                                   // the snow cap on top of the arch
+      const a = Math.PI * (0.1 + 0.8 * i / 11), [x, y] = along(R, H, a, R + 0.5); const c = E3(rr(0.42, 0.55), 0.24, 0.66, snow, 14);
+      c.position.set(x, y, 0); c.rotation.z = a - Math.PI / 2; g.add(c);
+    }
+    const icM = new THREE.MeshPhysicalMaterial({ color: 0xdff4ff, roughness: 0.1, clearcoat: 1, transparent: true, opacity: 0.9 });
+    for (let i = 0; i < 13; i++) {                                                   // icicles under the arch's front edge
+      const a = Math.PI * (0.12 + 0.76 * i / 12), [x, y] = along(R, H, a, R - 0.46), L = rr(0.25, 0.6) * (0.6 + 0.4 * Math.sin(a));
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.08, L, 8), icM); c.rotation.x = Math.PI; c.position.set(x, y - L / 2, 0.45); g.add(c);
+    }
+    const starM = new THREE.MeshPhysicalMaterial({ color: 0xeaf7ff, emissive: 0x58c8ff, emissiveIntensity: 0.15, roughness: 0.15, clearcoat: 1 });
+    for (let i = 0; i < 6; i++) {
+      const arm = new THREE.Group(); arm.rotation.z = i * Math.PI / 3;
+      const bar = new THREE.Mesh(new RoundedBoxGeometry(0.13, 0.66, 0.13, 2, 0.05), starM); bar.position.y = 0.33; arm.add(bar);
+      for (const sx of [-1, 1]) { const tw = new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.26, 0.1, 2, 0.04), starM); tw.position.set(sx * 0.09, 0.44, 0); tw.rotation.z = -sx * 0.85; arm.add(tw); }
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), starM); tip.position.y = 0.68; arm.add(tip);
+      top.add(arm);
+    }
+    top.add(new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 12), starM));
+    return starM;
+  },
+  // DESERT: sandstone pillars with turquoise and gold bands, a striped stone arch with a turquoise keystone, clay pots, a sun
+  desert(g, R, H, top) {
+    const sand = std(0xe8c38a, 0.8), terra = std(0xc8643c, 0.8), turq = gloss(0x22b8a8, { roughness: 0.3 }), gold = gloss(0xffc83a, { roughness: 0.25, metalness: 0.3 });
+    for (const sx of [-1, 1]) {
+      const plinth = new THREE.Mesh(new RoundedBoxGeometry(1.55, 0.45, 1.55, 2, 0.1), sand); plinth.position.set(sx * R, 0.22, 0); g.add(plinth);
+      const col = new THREE.Mesh(new RoundedBoxGeometry(1.15, H - 0.6, 1.15, 2, 0.12), sand); col.position.set(sx * R, 0.45 + (H - 0.6) / 2 - 0.1, 0); g.add(col);
+      for (const y of [0.9, 1.65]) { const band = new THREE.Mesh(new RoundedBoxGeometry(1.22, 0.16, 1.22, 2, 0.05), y > 1 ? gold : turq); band.position.set(sx * R, y, 0); g.add(band); }
+      const cap = new THREE.Mesh(new RoundedBoxGeometry(1.5, 0.3, 1.5, 2, 0.1), turq); cap.position.set(sx * R, H - 0.1, 0); g.add(cap);
+      const pot = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.32, 0.02], [0.42, 0.25], [0.38, 0.5], [0.22, 0.66], [0.24, 0.75], [0, 0.75]].map(([r, y]) => new THREE.Vector2(r, y)), 20), terra);
+      pot.position.set(sx * (R + 1.15), 0, 0.55); g.add(pot);
+      const plant = new THREE.Group(); plant.position.set(sx * (R + 1.15), 0.68, 0.55); cactus(plant, 0, 0, 0.42); g.add(plant);
+    }
+    blocksRound(g, R, H, 11, i => new THREE.Mesh(new RoundedBoxGeometry(0.7, 1.0, 1.2, 2, 0.1), i === 5 ? turq : i % 2 ? terra : sand));
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 20), gold); disc.rotation.x = Math.PI / 2; const [kx, ky] = along(R, H, Math.PI / 2); disc.position.set(kx, ky, 0.64); g.add(disc);
+    const starM = new THREE.MeshPhysicalMaterial({ color: 0xffc83a, emissive: 0xff9a00, emissiveIntensity: 0.15, roughness: 0.25, clearcoat: 1 });
+    const sun = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.18, 32), starM); sun.rotation.x = Math.PI / 2; top.add(sun);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 8, 32), turq); ring.position.z = 0.1; top.add(ring);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, r = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.28, 10), starM); r.position.set(Math.cos(a) * 0.6, Math.sin(a) * 0.6, 0); r.rotation.z = a - Math.PI / 2; top.add(r); }
+    return starM;
+  },
+  // SPACE: a metal arch with neon tubes and running lights, pillars ringed with glowing bands, a ringed planet on top
+  space(g, R, H, top) {
+    const metal = std(0x4a4f8f, 0.32, { metalness: 0.55 }), dark = std(0x262a5a, 0.4, { metalness: 0.4 });
+    const neon = c => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 1.1, roughness: 0.3 });
+    const cyan = neon(0x6ff3ff), pink = neon(0xff7fe0);
+    for (const sx of [-1, 1]) {
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.58, H, 24), metal); col.position.set(sx * R, H / 2, 0); g.add(col);
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, 0.3, 28), dark); foot.position.set(sx * R, 0.15, 0); g.add(foot);
+      const glow = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.05, 8, 40), cyan); glow.rotation.x = Math.PI / 2; glow.position.set(sx * R, 0.3, 0); g.add(glow);
+      for (const y of [0.8, 1.45, 2.1]) { const b = new THREE.Mesh(new THREE.TorusGeometry(0.56, 0.06, 8, 32), sx < 0 ? pink : cyan); b.rotation.x = Math.PI / 2; b.position.set(sx * R, y, 0); g.add(b); }
+    }
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(R, 0.45, 18, 72, Math.PI), metal); arch.position.y = H; g.add(arch);
+    for (const [r, m] of [[R - 0.42, cyan], [R + 0.42, pink]]) { const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.07, 8, 72, Math.PI), m); t.position.set(0, H, 0.3); g.add(t); }
+    const lights = [neon(0xfff27a), neon(0x6ff3ff), neon(0xff7fe0)];
+    for (let i = 0; i < 13; i++) { const [x, y] = along(R, H, Math.PI * (i + 0.5) / 13); const l = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), lights[i % 3]); l.position.set(x, y, 0.44); g.add(l); }
+    const starM = new THREE.MeshPhysicalMaterial({ color: 0xffd36b, emissive: 0xffa000, emissiveIntensity: 0.15, roughness: 0.3, clearcoat: 1 });
+    const planetM = new THREE.Mesh(new THREE.SphereGeometry(0.42, 28, 20), starM); top.add(planetM);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.07, 10, 48), cyan); ring.rotation.x = Math.PI / 2 - 0.4; ring.scale.z = 0.5; top.add(ring);
+    return starM;
+  },
+};
