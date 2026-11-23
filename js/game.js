@@ -666,7 +666,12 @@ function updateCamera(dt) {
     cam.pos.lerp(want, k); cam.look.lerp(look, k);
     E.camera.position.copy(cam.pos); E.camera.lookAt(cam.look);
   }
-  if (G.screen !== 'shop' && E.camera.view?.enabled) E.camera.clearViewOffset();
+  // the say-it turn: the picture shifts right so Tata stands beside the big word card (left)
+  cam.shift = (cam.shift || 0) + ((G.phase === 'say' && G.screen === 'play' ? -0.17 : 0) - (cam.shift || 0)) * E.damp(4, dt);
+  if (G.screen !== 'shop') {
+    if (Math.abs(cam.shift) > 0.002) E.camera.setViewOffset(innerWidth, innerHeight, cam.shift * innerWidth, 0, innerWidth, innerHeight);
+    else if (E.camera.view?.enabled) E.camera.clearViewOffset();
+  }
   E.sky.position.copy(E.camera.position);
   E.sunFollow(P.x, P.y, P.z);
 }
