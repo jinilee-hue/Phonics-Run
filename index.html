@@ -42,7 +42,7 @@
   <!-- title, top left: phonics-api key (a teacher enters it once per device; dot mint = the company server judges) · SHOP · wallet -->
   <div class="sys sys-left">
     <button class="sysbtn key" id="btnKey" aria-label="Speech server key" data-api="unknown"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="8" cy="12" r="3.6"/><path d="M11.6 12H20.5M17.6 12v3.2M20.5 12v2.4"/></svg><i class="dot"></i></button>
-    <button class="sysbtn shopbtn" id="btnShop" aria-label="Shop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8.5h14l-1.2 11a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3z"/><path d="M9 10.5V7a3 3 0 0 1 6 0v3.5"/></svg></button>
+    <button class="sysbtn shopbtn" id="btnShop" aria-label="Dress up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2a1.9 1.9 0 1 1 1.9-1.9c0 1-.8 1.5-1.9 2.1v1.4l8.3 5.4a1.2 1.2 0 0 1-.7 2.2H4.4a1.2 1.2 0 0 1-.7-2.2L12 8.8"/></svg></button>
     <div class="pill wallet-pill" aria-label="Coins"><i class="coin-ic"><b>m</b></i><b id="walletTitle">0</b></div>
   </div>
 
@@ -79,14 +79,17 @@
     <button class="bigbtn" id="btnStart"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>START</span></button></div>
   </section>
 
-  <!-- shop: Tata on the left wears what is picked; the shelf on the right -->
+  <!-- dress room (Phonics Match's model): a window on the left shows the real 3D Tata (drag to turn her all the way
+       round), the item cards on the right: price · hanger (owned) · check (worn); one item per body part -->
   <section class="screen s-shop">
-    <div class="shelf">
-      <div class="ribbon"><i class="rb-tail l"><svg viewBox="0 0 95 130" preserveAspectRatio="none" aria-hidden="true"><path d="M95 32 L5 32 L31 77 L5 122 L95 122 Z" fill="url(#rbTail)" stroke="url(#rbTail)" stroke-width="8" stroke-linejoin="round"/><path d="M75 96 L95 96 L95 123 L75 99.5 Z" fill="url(#rbFold)"/></svg></i><i class="rb-tail r"><svg viewBox="0 0 95 130" preserveAspectRatio="none" aria-hidden="true"><path d="M95 32 L5 32 L31 77 L5 122 L95 122 Z" fill="url(#rbTail)" stroke="url(#rbTail)" stroke-width="8" stroke-linejoin="round"/><path d="M75 96 L95 96 L95 123 L75 99.5 Z" fill="url(#rbFold)"/></svg></i><span class="rb-band">SHOP</span></div>
-      <div class="wallet"><i class="coin-ic"><b>m</b></i><b id="wallet">0</b></div>
-      <div class="items" id="items"></div>
-      <button class="rbtn go" id="shopClose" aria-label="Done"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="dress">
+      <div class="d-win" id="dWin"><div class="d-rot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5a7.5 4 0 0 0 15 0"/><path d="M19.5 11.5a7.5 4 0 0 0-15 0"/><path d="M7 16.4l-2.5.1.6-2.4"/><path d="M17 7.6l2.5-.1-.6 2.4"/></svg><b>360°</b></div></div>
+      <div class="d-side">
+        <div class="d-head"><h2 class="d-title">Dress Up</h2><div class="pill d-coins"><i class="coin-ic"><b>m</b></i><b id="wallet">0</b></div></div>
+        <div class="d-grid" id="items"></div>
+      </div>
     </div>
+    <button class="d-close" id="shopClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg></button>
   </section>
 
   <!-- level clear -->
@@ -98,6 +101,7 @@
       <div class="coinline"><i class="coin-ic"><b>m</b></i><b id="coinsEnd">0</b></div>
       <div class="btns">
         <button class="rbtn" id="cHome" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5M6.5 9.5V19h11V9.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="rbtn dressbtn" id="cDress" aria-label="Dress up"><svg viewBox="0 0 24 24"><path d="M12 7.2a1.9 1.9 0 1 1 1.9-1.9c0 1-.8 1.5-1.9 2.1v1.4l8.3 5.4a1.2 1.2 0 0 1-.7 2.2H4.4a1.2 1.2 0 0 1-.7-2.2L12 8.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="rbtn" id="cAgain" aria-label="Play again"><svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.1-5M19 4.5V9h-4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="rbtn go" id="cNext" aria-label="Next level"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>

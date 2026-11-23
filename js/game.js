@@ -11,6 +11,7 @@ import { LEVELS, buildLevel, updateLifts, PHON } from './level.js';
 import { updateItems, takeCard, takeCoin } from './items.js';
 import * as A from './audio.js';
 import { ICON, refreshCoin } from './icons3d.js';
+import { ITEMS, itemById } from './outfits.js';
 
 const qs = new URLSearchParams(location.search);
 const CAPTURE = qs.get('capture') === '1';
@@ -27,9 +28,6 @@ const PH = {
   coyote: 0.12, buffer: 0.15, hw: 0.42, h: 1.95,
 };
 const HEARTS = 3, TRAP_COST = 2, SAY_REWARD = 3;
-const SHOP = [
-  { id: 'shades', price: 15 }, { id: 'cape', price: 30 }, { id: 'crown', price: 45 }, { id: 'goldshoes', price: 60 },
-];
 
 // ---------------------------------------------------------------- state
 const runner = new Tata(E.scene, { puff: E.puff });
@@ -46,12 +44,15 @@ const cam = { x: 0, y: 0, look: 1 };
 function loadSave() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { /* blocked */ }
-  return Object.assign({ stars: {}, wallet: 0, owned: [], wear: [] }, s || {});
+  s = Object.assign({ stars: {}, wallet: 0, owned: [], worn: {} }, s || {});
+  if (Array.isArray(s.wear)) { for (const id of s.wear) { const it = itemById(id); if (it) s.worn[it.slot] = id; } delete s.wear; }   // (old save: a list)
+  for (const it of ITEMS) if (it.price === 0 && !s.owned.includes(it.id)) s.owned.push(it.id);                  // the free one
+  return s;
 }
 let save = loadSave();
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* private mode */ } }
 const unlocked = i => i === 0 || (save.stars[LEVELS[i - 1].id] || 0) > 0;
-const outfit = () => Object.fromEntries(save.wear.map(k => [k, true]));
+const outfit = () => Object.fromEntries(Object.values(save.worn).map(k => [k, true]));
 runner.setOutfit(outfit());
 
 // ---------------------------------------------------------------- waiting on the game clock (works with ?capture=1 too)
@@ -584,16 +585,23 @@ function updateCamera(dt) {
   cam.y += (G.camY - cam.y) * E.damp(G.screen === 'title' || G.screen === 'shop' ? 20 : 3.2, dt);
   const asp = innerWidth / innerHeight, far = Math.min(1.5, Math.max(1, 1.6 / asp));
   let cx = cam.x, cy = cam.y;
-  if (G.screen === 'title' || G.screen === 'shop') {
-    // title: close on Tata (left of centre), the LEVEL sign on the right; shop: Tata on the left, the shelf on the right
-    const shop = G.screen === 'shop';
-    cx = P.x + (shop ? 2.1 : 1.7); cy = P.y;
-    E.camera.position.set(cx, cy + (shop ? 1.8 : 2.1), (shop ? 7.6 : 10.5) * far);
-    E.camera.lookAt(cx, cy + (shop ? 1.15 : 1.3), 0);
+  if (G.screen === 'shop') {
+    // dress room: Tata alone in the window on the left, filling it (the view is shifted so she is at its centre)
+    const w = $('dWin').getBoundingClientRect(), fit = Math.max(1, (innerHeight * 0.62) / Math.max(1, w.height));
+    cx = P.x; cy = P.y;
+    E.camera.position.set(cx, cy + 1.45, 6.6 * fit);
+    E.camera.lookAt(cx, cy + 1.2, 0);
+    if (w.width) E.camera.setViewOffset(innerWidth, innerHeight, innerWidth / 2 - (w.left + w.width / 2), innerHeight / 2 - (w.top + w.height * 0.53), innerWidth, innerHeight);
+  } else if (G.screen === 'title') {
+    // title: close on Tata (left of centre), the LEVEL sign on the right
+    cx = P.x + 1.7; cy = P.y;
+    E.camera.position.set(cx, cy + 2.1, 10.5 * far);
+    E.camera.lookAt(cx, cy + 1.3, 0);
   } else {
     E.camera.position.set(cx - 1.0, cy + 4.0, 17 * far);
     E.camera.lookAt(cx + 0.5, cy + 1.7, 0);
   }
+  if (G.screen !== 'shop' && E.camera.view?.enabled) E.camera.clearViewOffset();
   E.sky.position.copy(E.camera.position);
   E.sunFollow(cx, cy);
 }
@@ -627,6 +635,9 @@ function tick(dt) {
   } else if (playing && G.phase === 'enter') {
     enterGate(dt);
   } else {
+    if ((G.screen === 'title' || G.screen === 'shop') && (P.y < -1 || !isFinite(P.y) || !isFinite(P.x))) {
+      Object.assign(P, { x: L.start.x, y: L.start.y, vx: 0, vy: 0, grounded: true, ground: L.plats[0] }); G.camY = P.y;
+    }
     physics(dt, false);           // say turn, done, title, shop, results: stand
   }
   if (G.phase !== 'enter') {                                  // (entering the gate, enterGate drives Tata itself)
@@ -635,7 +646,8 @@ function tick(dt) {
     const still = P.grounded && Math.abs(P.vx) < 0.3;
     const mode = P.hurt > 0 ? 'hurt' : G.screen === 'clear' || G.cheerT > 0 ? 'cheer'
       : G.phase === 'say' ? 'idle' : still ? (G.screen === 'title' || G.screen === 'shop' ? 'title' : 'idle') : 'play';
-    runner.update(dt, { vx: P.vx, vy: P.vy, grounded: P.grounded, facing: P.facing, max: PH.run, mode });
+    if (G.screen === 'shop' && !(G.cheerT > 0)) runner.update(dt, { vx: 0, vy: 0, grounded: true, facing: 1, max: PH.run, mode: 'steer', yaw: G.shopYaw });
+    else runner.update(dt, { vx: P.vx, vy: P.vy, grounded: P.grounded, facing: P.facing, max: PH.run, mode });
   }
   if (playing || G.screen === 'clear') updateGate(dt);
   updateItems(L.items, dt, G.t);
@@ -675,38 +687,58 @@ const showApi = () => { keyBtn.dataset.api = window.PhonicsAPI ? PhonicsAPI.stat
 keyBtn.addEventListener('click', async () => { A.unlock(); A.sfx.tap(); if (window.PhonicsAPI) { await PhonicsAPI.keyDialog(); showApi(); } });
 if (window.PhonicsAPI) { PhonicsAPI.init().then(showApi); addEventListener('phonicsapi:status', showApi); }
 
-// shop: coins from every game → things for Tata to wear (a reward has to be spendable)
-const ITEM_SVG = Object.fromEntries(SHOP.map(it => [it.id, `<img src="${ICON[it.id]}" alt="" draggable="false">`]));
+// dress room (Phonics Match's): coins → things for Tata to wear (a reward has to be spendable). One item per body part;
+// tap an owned one to wear / take it off. Tata stands in the window: drag to turn her all the way round (360°).
+const HANGER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2a1.9 1.9 0 1 1 1.9-1.9c0 1-.8 1.5-1.9 2.1v1.4l8.3 5.4a1.2 1.2 0 0 1-.7 2.2H4.4a1.2 1.2 0 0 1-.7-2.2L12 8.8"/></svg>';
+const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19.5 7"/></svg>';
+let shopFrom = 'title';
 function drawShop() {
   $('wallet').textContent = save.wallet || 0;
-  $('items').innerHTML = SHOP.map(it => {
-    const own = save.owned.includes(it.id), on = save.wear.includes(it.id), can = (save.wallet || 0) >= it.price;
-    return `<button class="item${own ? ' own' : ''}${on ? ' on' : ''}${!own && !can ? ' poor' : ''}" data-id="${it.id}" aria-label="${it.id}">
-      <span class="pic">${ITEM_SVG[it.id]}</span>
-      ${own ? `<span class="tick">${on ? '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>`
-        : `<span class="price"><i class="coin-ic"><b>m</b></i>${it.price}</span>`}
-    </button>`;
+  $('items').innerHTML = ITEMS.map(it => {
+    const own = save.owned.includes(it.id), on = save.worn[it.slot] === it.id, can = (save.wallet || 0) >= it.price;
+    const tag = on ? `<span class="tag worn">${CHECK}</span>` : own ? `<span class="tag own">${HANGER}</span>`
+      : `<span class="tag price"><i class="coin-ic"><b>m</b></i>${it.price}</span>`;
+    return `<button class="item${own ? ' own' : ''}${on ? ' on' : ''}${!own && !can ? ' poor' : ''}" data-id="${it.id}" aria-label="${it.name}">
+      <span class="pic"><img src="${ICON[it.id]}" alt="" draggable="false"></span>${tag}</button>`;
   }).join('');
   for (const b of $('items').children) b.addEventListener('click', () => shopTap(b.dataset.id, b));
 }
 function shopTap(id, el) {
-  const it = SHOP.find(s => s.id === id);
+  const it = itemById(id);
+  let pop = null;
   if (save.owned.includes(id)) {
-    save.wear = save.wear.includes(id) ? save.wear.filter(k => k !== id) : [...save.wear, id];
-    A.sfx.tap();
+    if (save.worn[it.slot] === id) { delete save.worn[it.slot]; A.sfx.tap(); }
+    else { save.worn[it.slot] = id; pop = id; A.sfx.buy(); G.cheerT = 0.7; if (Math.random() < 0.5) A.say('t:buy'); }
   } else if ((save.wallet || 0) >= it.price) {
-    save.wallet -= it.price; save.owned.push(id); save.wear.push(id);
-    A.sfx.buy(); A.say('t:buy');
-    E.burst(new THREE.Vector3(P.x, P.y + 1.4, 0.4), 0xfff3a0, 0.8);
+    save.wallet -= it.price; save.owned.push(id); save.worn[it.slot] = id; pop = id;
+    A.sfx.buy(); A.say('t:buy'); G.cheerT = 0.9;
+    E.burst(new THREE.Vector3(P.x, P.y + 1.6, 0.6), 0xfff3a0, 0.8);
   } else {
     A.sfx.nope(); A.say('t:nocoin');
     el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
     return;
   }
-  writeSave(); runner.setOutfit(outfit()); drawShop(); drawLevels();
+  writeSave(); runner.setOutfit(outfit(), pop); drawShop(); drawLevels();
 }
-$('btnShop').addEventListener('click', () => { A.unlock(); A.sfx.tap(); drawShop(); setScreen('shop'); A.say('t:shop'); });
-$('shopClose').addEventListener('click', () => { A.sfx.tap(); setScreen('title'); drawLevels(); });
+function openShop(from) {
+  A.unlock(); A.sfx.tap(); shopFrom = from;
+  if (from === 'clear') { Object.assign(P, { x: G.lv.start.x, y: 0, vx: 0, vy: 0, grounded: true, ground: G.lv.plats[0] }); runner.root.scale.setScalar(1); }
+  G.shopYaw = 0.35; drawShop(); setScreen('shop'); A.say('t:shop');
+}
+$('btnShop').addEventListener('click', () => openShop('title'));
+$('cDress').addEventListener('click', () => openShop('clear'));
+$('shopClose').addEventListener('click', () => {
+  A.sfx.tap();
+  if (shopFrom === 'clear') toTitle(); else { setScreen('title'); drawLevels(); }
+});
+// drag in the window turns Tata (no snapping back — like Match's dress room); a tap makes her hop
+{
+  const win = $('dWin'); let drag = null;
+  win.addEventListener('pointerdown', e => { drag = { x: e.clientX, y0: G.shopYaw, moved: 0 }; win.setPointerCapture(e.pointerId); e.preventDefault(); });
+  win.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x; drag.moved = Math.max(drag.moved, Math.abs(dx)); G.shopYaw = drag.y0 + dx * 0.012; });
+  const end = () => { if (drag && drag.moved < 6) { G.cheerT = 0.6; A.sfx.tap(); } drag = null; };
+  win.addEventListener('pointerup', end); win.addEventListener('pointercancel', end);
+}
 
 $('btnStart').addEventListener('click', () => startLevel(G.idx));
 $('btnExit').addEventListener('click', () => { A.sfx.tap(); toTitle(); });
@@ -738,8 +770,8 @@ window.PR = {
   env: E, tata: runner,   // tests: lights, bloom, the character
   sayCard: w => { app.classList.add('saying'); showSayCard(w, 0); const r = $('sayWord').getBoundingClientRect(); return { h: r.height, w: r.width, card: $('sayWord').parentElement.clientWidth, font: getComputedStyle($('sayWord')).fontSize }; },
   unlockAll() { for (const L of LEVELS) save.stars[L.id] = save.stars[L.id] || 1; drawLevels(); },   // tests
-  shop: () => $('btnShop').click(), buy: id => shopTap(id, document.body),
-  get state() { return { screen: G.screen, phase: G.phase, x: P.x, y: P.y, vx: P.vx, vy: P.vy, grounded: P.grounded, hearts: G.hearts, coins: G.coins, got: [...G.got], said: [...G.said], words: G.lv.words, wallet: save.wallet, wear: [...save.wear], demo: !!G.auto, t: G.t }; },
+  shop: () => $('btnShop').click(), buy: id => shopTap(id, document.body), turn: y => { G.shopYaw = y; },
+  get state() { return { screen: G.screen, phase: G.phase, x: P.x, y: P.y, vx: P.vx, vy: P.vy, grounded: P.grounded, hearts: G.hearts, coins: G.coins, got: [...G.got], said: [...G.said], words: G.lv.words, wallet: save.wallet, worn: { ...save.worn }, demo: !!G.auto, t: G.t }; },
   screenAt: (x, y, z) => toScreen(x, y, z),
   ready: fontsReady.then(() => new Promise(r => setTimeout(r, 300))),
 };

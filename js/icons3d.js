@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { ITEMS, buildItem, ICON_VIEW } from './outfits.js';
 
 const S = 256;
 const canvas = document.createElement('canvas'); canvas.width = canvas.height = S;
@@ -125,61 +126,6 @@ function padlock() {
   g.add(body, shackle, hole);
   return g;
 }
-// ---- shop items
-function shades() {
-  const g = new THREE.Group(), frame = glossy(0xff4fa3), lens = new THREE.MeshPhysicalMaterial({ color: 0x2a1240, roughness: 0.08, clearcoat: 1 });
-  for (const x of [-0.85, 0.85]) {
-    const f = new THREE.Mesh(new RoundedBoxGeometry(1.4, 1.1, 0.22, 4, 0.35), frame); f.position.x = x;
-    const l = new THREE.Mesh(new RoundedBoxGeometry(1.1, 0.82, 0.12, 4, 0.28), lens); l.position.set(x, 0, 0.1);
-    g.add(f, l, shine(x + 0.25, 0.22, 0.2, 0.12, 0.07));
-  }
-  const bridge = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 4, 8), frame); bridge.rotation.z = Math.PI / 2; bridge.position.y = 0.18; g.add(bridge);
-  return g;
-}
-function cape() {
-  const g = new THREE.Group();
-  const geo = new THREE.PlaneGeometry(1, 1, 12, 12), p = geo.getAttribute('position');
-  for (let i = 0; i < p.count; i++) {
-    const u = p.getX(i), v = p.getY(i) + 0.5, w = 0.9 + 0.9 * (1 - v);
-    p.setXYZ(i, u * w, -1.8 * (1 - v), -0.35 * (u * 2) ** 2 + 0.12 * Math.sin(u * 9) * (1 - v));
-  }
-  geo.computeVertexNormals();
-  const m = new THREE.Mesh(geo, glossy(0xe8304a, { side: THREE.DoubleSide, roughness: 0.45, clearcoat: 0.3 }));
-  const bar = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.9, 4, 10), glossy(0xffc83a, { metalness: 0.3 })); bar.rotation.z = Math.PI / 2; bar.position.z = 0.05;
-  g.add(m, bar); g.rotation.x = -0.25;
-  return g;
-}
-function crown() {
-  const g = new THREE.Group(), gold = new THREE.MeshPhysicalMaterial({ color: 0xffc83a, roughness: 0.22, metalness: 0.6, clearcoat: 1 });
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.05, 0.55, 40, 1, true), gold); band.material.side = THREE.DoubleSide; g.add(band);
-  const gems = [0xff3f79, 0x2f7bff, 0x37d39b];
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2 + 0.3;
-    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.62, 12), gold); sp.position.set(Math.sin(a), 0.56, Math.cos(a)); g.add(sp);
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), gold); b.position.set(Math.sin(a), 0.92, Math.cos(a)); g.add(b);
-    if (i % 2 === 0) { const gem = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10), glossy(gems[i / 2])); gem.position.set(Math.sin(a) * 1.04, 0, Math.cos(a) * 1.04); g.add(gem); }
-  }
-  g.rotation.x = 0.35;
-  return g;
-}
-function goldShoe() {
-  // Tata's shoe in gold: a puffy toe, a white sole, the opening for the foot
-  const geo = new THREE.SphereGeometry(1, 40, 28), p = geo.getAttribute('position');
-  for (let i = 0; i < p.count; i++) {
-    let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    if (y < -0.45) y = -0.45 - (y + 0.45) * 0.2;
-    p.setXYZ(i, x * 0.85 * (z > 0 ? 1 + 0.1 * z : 1), y * 0.62, z * 1.15);
-  }
-  geo.computeVertexNormals();
-  const g = new THREE.Group();
-  g.add(new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color: 0xffc23a, roughness: 0.25, metalness: 0.55, clearcoat: 1 })));
-  const sole = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 40), matte(0xfff4dc)); sole.scale.set(0.9, 0.12, 1.22); sole.position.y = -0.3; g.add(sole);
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(0.42, 28), matte(0x8a5a10)); hole.rotation.x = -Math.PI / 2 + 0.25; hole.position.set(0, 0.6, -0.35); hole.scale.set(1, 1.25, 1); g.add(hole);
-  g.add(shine(-0.3, 0.42, 0.75, 0.2, 0.08));
-  g.rotation.set(0.4, -0.75, 0);
-  return g;
-}
-
 /** render everything (call again after the web font has loaded: the coin's "m") */
 export function renderIcons() {
   const I = {
@@ -187,9 +133,9 @@ export function renderIcons() {
     coin: shot(coin(), { yaw: -0.45, pitch: -0.15 }),
     starOn: shot(star(true), { pitch: -0.12 }), starOff: shot(star(false), { pitch: -0.12 }),
     lock: shot(padlock(), { yaw: -0.35, pitch: -0.15 }),
-    shades: shot(shades(), { yaw: -0.35, pitch: -0.12 }), cape: shot(cape(), { yaw: -0.4 }), crown: shot(crown(), { yaw: 0.2 }), goldshoes: shot(goldShoe()),
   };
   I.broken = shot(crackedHeart());
+  for (const it of ITEMS) I[it.id] = shot(buildItem(it.id), { pad: 1.08, ...ICON_VIEW[it.id] });
   const root = document.documentElement.style;
   root.setProperty('--ic-coin', `url("${I.coin}")`);
   root.setProperty('--ic-lock', `url("${I.lock}")`);

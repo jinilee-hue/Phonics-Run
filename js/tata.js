@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { TessellateModifier } from 'three/addons/modifiers/TessellateModifier.js';
 import { SDF, mesh as sdfMesh } from './sdf.js';
+import { ITEMS, buildItem, HIDES_TUFT } from './outfits.js';
 
 export const TATA_COLORS = {
   orange: 0xf8620a, navy: 0x161c40, cream: 0xf5e5d4, teal: 0x05868b, blue: 0x1c46d8, brow: 0x7a3812,
@@ -120,7 +121,7 @@ function handGeometry() {
       const [fx, dl] = F[i], r0 = i === 3 ? 0.041 : 0.047, r1 = i === 3 ? 0.036 : 0.042;
       fingers = Math.min(fingers, SDF.roundCone(x, y, z, fx, -0.1, 0.0, fx * 1.05, -0.2 - dl, -0.038, r0, r1));
     }
-    const thumb = SDF.roundCone(x, y, z, -0.085, -0.035, 0.01, -0.142, -0.112, 0.036, 0.054, 0.047);
+    const thumb = SDF.roundCone(x, y, z, -0.085, -0.035, -0.006, -0.138, -0.112, -0.034, 0.054, 0.047);   // tip toward the palm side
     let d = SDF.smin(arm, palm, 0.06);
     d = SDF.smin(d, fingers, 0.03);
     d = SDF.smin(d, thumb, 0.03);
@@ -251,7 +252,8 @@ export class Tata {
       const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.108, 0.06, 8, 16), orange); fore.position.y = -0.03; elbow.add(fore);
       // the right hand is the mirror of the left (a 135° turn showed the left palm to the front)
       const hand = new THREE.Mesh(handGeometry(), orange);
-      hand.position.set(0, -0.095, 0); hand.rotation.y = s * Math.PI / 4; hand.scale.x = s; elbow.add(hand);
+      // palm toward the body, the back of the hand outward, the thumb forward (user: "손바닥이 몸쪽으로 가고 손 등이 바깥쪽")
+      hand.position.set(0, -0.095, 0); hand.rotation.y = s * Math.PI * 0.5; hand.scale.x = s; elbow.add(hand);
       this.arms.push({ s, sh, elbow });
     }
 
@@ -382,69 +384,43 @@ export class Tata {
     this.tuftA = 0; this.tuftV = 0; this.prevBob = 0;
   }
 
-  /** shop items: { shades, cape, crown, goldshoes } → shown / hidden (built the first time they are worn) */
-  setOutfit(on = {}) {
+  /** dress-up items (js/outfits.js): on = { id: true } → shown / hidden, built the first time they are worn;
+   *  pop = the item just put on (it springs into place) */
+  setOutfit(on = {}, pop = null) {
     this.outfit ||= {};
+    const PLACE = {   // where each item sits: parent, position, rotation, scale (head = the head centre, torso = the hem)
+      gradcap: ['head', [0, HB - 0.075, -0.02], [-0.1, 0, 0.06]],
+      bow: ['head', [-0.31, 0.34, 0.2], [0.1, -0.35, 0.45]],
+      party: ['head', [0.02, HB - 0.06, -0.02], [0, 0, -0.08]],
+      flowers: ['head', [0, 0.27, -0.01], [-0.12, 0, 0]],
+      bunny: ['head', [0, 0.455, 0.02], [0, 0, 0]],
+      crown: ['head', [0, HB - 0.02, -0.02], [0, 0, 0.1]],
+      roundglasses: ['face'], starglasses: ['face'], shades: ['face'],
+      bowtie: ['torso', [0, 0.45, 0.335], [-0.25, 0, 0]],
+      scarf: ['torso', [0, 0.545, 0.01], [0, 0, 0], [1.08, 1, 1]],
+      cape: ['torso', [0, 0.48, -0.25], [0, 0, 0]],
+      wings: ['torso', [0, 0.36, -0.36], [0.15, 0, 0]],
+    };
     const make = id => {
       if (this.outfit[id]) return this.outfit[id];
-      const g = new THREE.Group();
-      if (id === 'shades') {
-        // star-pink frames with dark lenses over the eyes
-        const frameM = clay(0xff4fa3, 0.35, 0.05, 0.8), lensM = new THREE.MeshStandardMaterial({ color: 0x241038, roughness: 0.12, metalness: 0.3 });
-        for (const sx of [-1, 1]) {
-          const e = onHead(new THREE.Group(), sx * 0.2, 0.075, 0.085);
-          const rim = new THREE.Mesh(new RoundedBoxGeometry(0.32, 0.28, 0.05, 4, 0.1), frameM);
-          const lens = new THREE.Mesh(new RoundedBoxGeometry(0.25, 0.21, 0.03, 4, 0.08), lensM); lens.position.z = 0.02;
-          const shine = new THREE.Mesh(new THREE.CircleGeometry(0.03, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 }));
-          shine.position.set(0.06, 0.05, 0.037);
-          e.add(rim, lens, shine); g.add(e);
-        }
-        const bridge = onHead(new THREE.Mesh(new THREE.CapsuleGeometry(0.022, 0.06, 4, 8), frameM), 0, 0.11, 0.11); bridge.rotateZ(Math.PI / 2); g.add(bridge);
-        this.head.add(g);
-      } else if (id === 'cape') {
-        // red cape: a panel BEHIND the back (not round the waist — that reads as a skirt), gathered narrow at the neck
-        // under a gold bar, wider and further back at the hem, the sides curving forward a little; flies back when running
-        const capeM = clay(0xe8304a, 0.7, 0.2, 0.3); capeM.side = THREE.DoubleSide;
-        const geo = new THREE.PlaneGeometry(1, 1, 12, 12), cp = geo.getAttribute('position');
-        for (let i = 0; i < cp.count; i++) {
-          const u = cp.getX(i), v = cp.getY(i) + 0.5;            // u -0.5..0.5 across, v 0 bottom .. 1 top
-          const w = lerp(0.82, 0.4, v);                            // width: 0.82 at the hem, 0.4 at the neck
-          const x = u * w, y = -0.66 * (1 - v);
-          const z = -lerp(0.4, 0.06, v) + 0.32 * (u * 2) ** 2 * lerp(0.35, 0.15, v) * w;
-          cp.setXYZ(i, x, y, z);
-        }
-        geo.computeVertexNormals();
-        const cape = new THREE.Mesh(geo, capeM);
-        const bar = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.34, 4, 10), clay(0xffc83a, 0.4, 0.05, 0.6));
-        bar.rotation.z = Math.PI / 2; bar.position.set(0, 0.0, -0.06);
-        g.add(cape, bar); g.position.set(0, 0.48, -0.25);
-        this.torso.add(g); this.cape = g;
-      } else if (id === 'crown') {
-        const gold = new THREE.MeshStandardMaterial({ color: 0xffc83a, roughness: 0.28, metalness: 0.65 });
-        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.1, 32, 1, true), gold); band.material.side = THREE.DoubleSide;
-        g.add(band);
-        const gems = [0xff3f79, 0x2f7bff, 0x37d39b];
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * Math.PI * 2;
-          const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 10), gold); spike.position.set(Math.sin(a) * 0.2, 0.1, Math.cos(a) * 0.2); g.add(spike);
-          const ball = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), gold); ball.position.set(Math.sin(a) * 0.2, 0.17, Math.cos(a) * 0.2); g.add(ball);
-          if (i % 2 === 0) { const gem = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 8), new THREE.MeshStandardMaterial({ color: gems[i / 2], roughness: 0.15, metalness: 0.1 })); gem.position.set(Math.sin(a) * 0.215, 0.0, Math.cos(a) * 0.215); gem.scale.z = 0.6; gem.lookAt(0, 0, 0); g.add(gem); }
-        }
-        g.position.set(0, HB - 0.02, -0.02); g.rotation.z = 0.1;
-        this.head.add(g);
-      } else if (id === 'goldshoes') {
-        g.userData.gold = new THREE.MeshStandardMaterial({ color: 0xffc23a, roughness: 0.3, metalness: 0.55 });
-      }
-      g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      if (id === 'goldshoes') return (this.outfit[id] = { userData: { gold: new THREE.MeshPhysicalMaterial({ color: 0xffc23a, roughness: 0.28, metalness: 0.55, clearcoat: 0.6 }) } });
+      const g = buildItem(id), [where, pos, rot, sc] = PLACE[id];
+      if (where === 'face') { onHead(g, 0, 0.075, 0.14); this.head.add(g); }
+      else { g.position.set(...pos); g.rotation.set(...rot); if (sc) g.scale.set(...sc); (where === 'head' ? this.head : this.torso).add(g); }
+      g.userData.base = g.scale.clone();
+      if (id === 'cape') this.cape = g;
+      if (id === 'wings') this.wings = g;
       return (this.outfit[id] = g);
     };
-    for (const id of ['shades', 'cape', 'crown', 'goldshoes']) {
+    for (const { id } of ITEMS) {
       const want = !!on[id];
-      if (!want && !this.outfit?.[id]) continue;
+      if (!want && !this.outfit[id]) continue;
       const g = make(id);
+      if (id === 'goldshoes') { for (const sh of this.shoes) sh.material = want ? g.userData.gold : this.mats.teal; continue; }
       g.visible = want;
-      if (id === 'goldshoes') for (const sh of this.shoes) sh.material = want ? g.userData.gold : this.mats.teal;
     }
+    this.tuft.visible = !Object.keys(on).some(id => on[id] && HIDES_TUFT.has(id));
+    if (pop && on[pop]) this.popping = { id: pop, t: 0 };
   }
 
   jumped() { this.takeoff = 0.14; this.jumpSide = -this.jumpSide; this.tuftV -= 6; }
@@ -523,6 +499,16 @@ export class Tata {
     this.neck.rotation.x = -this.torso.rotation.x * 0.5 + (moving ? 0.035 * Math.cos(2 * this.phase) : 0);
     this.neck.rotation.y = -this.torso.rotation.y * 0.6;
     this.head.rotation.y = lerp(this.head.rotation.y, st.mode === 'idle' ? -this.facing * 0.22 : 0, damp(4, dt));
+    if (this.popping) {                                         // a new item springs into place
+      const P = this.popping, g = this.outfit[P.id]; P.t += dt;
+      const k = P.t > 0.9 ? 1 : 1 - Math.cos(P.t * 15) * Math.exp(-P.t * 6.5);
+      if (g?.userData?.base) g.scale.copy(g.userData.base).multiplyScalar(Math.max(0.001, k));
+      if (P.t > 0.9) this.popping = null;
+    }
+    if (this.wings?.visible) {                                  // the wings flap a little, more in the air
+      const f = Math.sin(this.t * (air > 0.5 ? 16 : 4)) * (air > 0.5 ? 0.35 : 0.08);
+      for (const n of ['wingL', 'wingR']) { const w = this.wings.getObjectByName(n); if (w) w.rotation.y = (n === 'wingL' ? -1 : 1) * (0.45 + f); }
+    }
     if (this.cape?.visible) {
       const fly = moving ? 0.25 + 0.75 * s : air > 0.5 ? (rising > 0 ? 0.2 : 0.9) : 0.08;
       this.capeA = lerp(this.capeA || 0, fly, damp(6, dt));
