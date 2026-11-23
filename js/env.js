@@ -114,9 +114,9 @@ sun.shadow.normalBias = 0.035;
 sun.shadow.radius = 3;
 scene.add(hemi, sun, sun.target);
 /** keep the shadow box on the part of the course that is on screen */
-export function sunFollow(x, y) {
-  sun.position.set(x - 16, y + 34, 26);
-  sun.target.position.set(x + 2, y - 2, -2);
+export function sunFollow(x, y, z = 0) {
+  sun.position.set(x - 14, y + 34, z + 16);
+  sun.target.position.set(x, y - 2, z - 8);
 }
 
 export const composer = new EffectComposer(renderer);
@@ -156,31 +156,39 @@ export const sky = (() => {
 // ---------------------------------------------------------------- themes: one look per level (user 2026-11-23: "level별 맵이 다양했으면")
 // meadow = the Word Mashup world as it was · candy = a sunset candy land · night = a starry crystal night.
 export const THEMES = {
-  meadow: {
-    sky: [0x0a86e2, 0x1bb7f1, 0xa8eaff], fog: [0x9fdcff, 70, 260], hemi: [0xd3efff, 0xf0d2b0, 0.95], sun: [0xfff0db, 2.9],
-    // no bloom by day: the sunlit clouds bled a haze over Tata (user: "캐릭터 위에 뿌옇게")
-    env: 0.28, exposure: 0.96, bloom: [0, 9], grass: 0x5ec53f, grassGlow: 0, dirt: [0x7d4a2b, 0xa96b3c, 0xc98b4f, 0xd99d5c],
-    tree: 'round', fence: { color: 0xffc226 }, cloud: [0xffffff, 0xc7d3ff, 0.2],
-    balloons: [['#ff6fa8', '#ffd34d'], ['#7ed96b', '#a57bff'], ['#ff5a5f', '#fff1d6'], ['#4fb3ff', '#ffd34d'], ['#ff8fc8', '#ffffff'], ['#ffd34d', '#6fd16b']],
-    cardGlow: 0.14, playerLight: 0, stars: false,
+  forest: {
+    sky: [0x2b8fe6, 0x74c8f4, 0xdaf3ff], fog: [0xcfeeff, 55, 210], hemi: [0xe6f4ff, 0xb2cc94, 1.0], sun: [0xfff2dc, 2.8],
+    env: 0.28, exposure: 0.98, bloom: [0, 9], grass: 0x6bcb4c, grassGlow: 0, dirt: [0x7a4a2a, 0x9c6438, 0xbb8250, 0xcf9a62],
+    tree: 'round', fence: { color: 0xc58a4e }, cloud: [0xffffff, 0xd6e6ff, 0.2], path: 0xe3bd86,
+    balloons: [['#ff6fa8', '#ffd34d'], ['#7ed96b', '#a57bff'], ['#4fb3ff', '#ffd34d']], cardGlow: 0.14, playerLight: 0, stars: false,
   },
   candy: {
-    sky: [0x5b4bd0, 0xff7fb4, 0xffc690], fog: [0xffb9b0, 60, 240], hemi: [0xffe0d6, 0xb07ab0, 1.0], sun: [0xffbf94, 2.5],
-    env: 0.3, exposure: 1.0, bloom: [0, 9], grass: 0xffa6d2, grassGlow: 0, dirt: [0x8c4f2c, 0xc27a3e, 0xe2a462, 0xf2c681],
-    tree: 'candy', fence: { color: 0xffffff, stripes: '#ff74ad' }, cloud: [0xfff0f4, 0xffb3cc, 0.28],
-    frostings: [0xffb8d6, 0xb6efd9, 0xd6c6ff, 0xfff0a6, 0xffcfae],   // pastel icing, one per island
-    balloons: [['#ff6fa8', '#fff3c4'], ['#ffb347', '#ffffff'], ['#a57bff', '#ffd6f0'], ['#4fd6c8', '#fff3c4'], ['#ff5a7a', '#ffd34d']],
+    sky: [0x3c9cef, 0x93d2ff, 0xffe2f0], fog: [0xffe0ef, 55, 210], hemi: [0xfff2f6, 0xd9a6b4, 1.0], sun: [0xfff0e2, 2.6],
+    env: 0.3, exposure: 1.0, bloom: [0, 9], grass: 0xffb5d6, grassGlow: 0, dirt: [0x4a2414, 0x6c3a20, 0x8a5230, 0xf3e2cc],
+    tree: 'candy', fence: { color: 0xffffff, stripes: '#ff4f5e' }, cloud: [0xffe4f1, 0xff9cc8, 0.35], path: 0xe8b46a,
+    frostings: [0xffb5d6, 0xffd0e6, 0xf6c8ff], balloons: [['#ff6fa8', '#fff3c4'], ['#ffb347', '#ffffff'], ['#a57bff', '#ffd6f0']],
     cardGlow: 0.18, playerLight: 0, stars: false,
   },
-  night: {
-    sky: [0x0a0b33, 0x28206e, 0x6c4cb4], fog: [0x2c2870, 55, 230], hemi: [0xa8b2ff, 0x3a2a72, 0.95], sun: [0xcfd8ff, 1.8],
-    // no bloom at night either: it hazed Tata too (the lanterns glow by their own colour)
-    env: 0.4, exposure: 1.06, bloom: [0, 9], grass: 0x34cfb0, grassGlow: 0.18, dirt: [0x231c48, 0x352a68, 0x4a3a88, 0x5c4a9e],
-    tree: 'crystal', fence: { color: 0x8af4ff, glow: 0x2fc8ff }, cloud: [0xc4c0ff, 0x6a5fd0, 0.4],
-    balloons: null, cardGlow: 0.34, playerLight: 10, stars: true,
+  snow: {
+    sky: [0x4c9ded, 0xa6d4ff, 0xf4e6ff], fog: [0xe8f3ff, 55, 220], hemi: [0xf4f9ff, 0xaec6e0, 1.05], sun: [0xfff6ee, 2.6],
+    env: 0.32, exposure: 0.98, bloom: [0, 9], grass: 0xf7fbff, grassGlow: 0, dirt: [0x4f8fd6, 0x76b2ec, 0xa6d6fb, 0xd2ecff],
+    tree: 'pine', fence: { color: 0xf4f9ff }, cloud: [0xffffff, 0xd8e6ff, 0.25], path: 0xe6f0fb,
+    balloons: null, cardGlow: 0.14, playerLight: 0, stars: false, snowfall: true,
+  },
+  desert: {
+    sky: [0x5aa6e6, 0xf0d6a8, 0xffe6bc], fog: [0xf6dcae, 55, 220], hemi: [0xfff3dc, 0xd8b078, 1.0], sun: [0xfff0d0, 3.0],
+    env: 0.28, exposure: 0.98, bloom: [0, 9], grass: 0xf0c072, grassGlow: 0, dirt: [0xa86a36, 0xc68650, 0xdca468, 0xebbd7e],
+    tree: 'palm', fence: { color: 0xd9a86a }, cloud: [0xfff6e6, 0xffd8a8, 0.25], path: 0xf8dca0,
+    balloons: null, cardGlow: 0.14, playerLight: 0, stars: false,
+  },
+  space: {
+    sky: [0x08052a, 0x24125a, 0x5a2c8c], fog: [0x1c1450, 50, 260], hemi: [0xbcaaff, 0x3a2a72, 0.95], sun: [0xe6dcff, 2.0],
+    env: 0.4, exposure: 1.04, bloom: [0, 9], grass: 0x9c8ec4, grassGlow: 0, dirt: [0x2e2648, 0x463a6a, 0x5e508a, 0x7c6eaa],
+    tree: 'crystal', fence: { color: 0x8af4ff, glow: 0x2fc8ff }, cloud: [0xc4c0ff, 0x6a5fd0, 0.4], path: 0x6d5fd6,
+    balloons: null, cardGlow: 0.3, playerLight: 10, stars: true, lowGravity: true,
   },
 };
-export let TH = THEMES.meadow;
+export let TH = THEMES.forest;
 // stars + a crescent moon (night only); they ride with the camera like the sky dome
 export const nightSky = (() => {
   const g = new THREE.Group(); g.visible = false; g.renderOrder = -90;
@@ -209,7 +217,7 @@ export const playerLight = new THREE.PointLight(0xffe2c4, 0, 9, 1.6);
 scene.add(playerLight);
 /** sky, fog, light, bloom and the materials the builders use, for a level's theme */
 export function applyTheme(name) {
-  TH = THEMES[name] || THEMES.meadow;
+  TH = THEMES[name] || THEMES.forest;
   const u = sky.material.uniforms;
   u.cTop.value.set(TH.sky[0]); u.cMid.value.set(TH.sky[1]); u.cLow.value.set(TH.sky[2]);
   scene.fog.color.set(TH.fog[0]); scene.fog.near = TH.fog[1]; scene.fog.far = TH.fog[2];
@@ -288,13 +296,13 @@ function swirlTex(a, b) {
   }));
 }
 // ---- candy land (user 2026-11-23: "사탕들도 귀엽게 조금 더 입체감 있게, 파스텔 톤, 토핑 바른 것들도"): glossy pastel candy
-const PASTEL = [0xff8cbf, 0x63d9ad, 0xae8cff, 0xffd447, 0xff9c66, 0x6fbcff];   // candy: a step stronger than the pastel icing ground
-const SPRINKLE = [0xff7fb0, 0x7fd8ff, 0xffe066, 0x9cf0a8, 0xc59bff, 0xffffff];
-const candyM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08, sheen: 0.3, sheenColor: new THREE.Color(0xffffff) });
-const softM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.55, sheen: 0.6, sheenColor: new THREE.Color(0xffffff) });
+export const PASTEL = [0xff8cbf, 0x63d9ad, 0xae8cff, 0xffd447, 0xff9c66, 0x6fbcff];   // candy: a step stronger than the pastel icing ground
+export const SPRINKLE = [0xff7fb0, 0x7fd8ff, 0xffe066, 0x9cf0a8, 0xc59bff, 0xffffff];
+export const candyM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08, sheen: 0.3, sheenColor: new THREE.Color(0xffffff) });
+export const softM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.55, sheen: 0.6, sheenColor: new THREE.Color(0xffffff) });
 let sprinkleGeo = null;
 /** colourful sprinkles scattered over a surface: pts = [[x, y, z, nx, ny, nz]] (instanced) */
-function sprinkleMesh(pts, scale = 1) {
+export function sprinkleMesh(pts, scale = 1) {
   sprinkleGeo ||= new THREE.CapsuleGeometry(0.022, 0.07, 3, 6);
   const m = new THREE.InstancedMesh(sprinkleGeo, new THREE.MeshStandardMaterial({ roughness: 0.4 }), pts.length);
   const q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color(), M = new THREE.Matrix4(), S = V(scale, scale, scale);
@@ -315,7 +323,7 @@ function sprinkles(g, w, d) {
   }
   g.add(sprinkleMesh(pts));
 }
-function swirlTex2(a, b) {
+export function swirlTex2(a, b) {
   const k = 'p' + a + b;
   return (candyTex[k] ||= canvasTex(256, 256, c => {
     c.fillStyle = b; c.fillRect(0, 0, 256, 256);
@@ -327,7 +335,7 @@ function swirlTex2(a, b) {
     }
   }));
 }
-function lollipop(g, s) {
+export function lollipop(g, s) {
   const [a, b] = [['#ff7fb4', '#ffffff'], ['#3fcf9c', '#ffffff'], ['#9d74ff', '#fff3b8'], ['#ff8f52', '#fff8ec'], ['#4ea8ff', '#ffe0ef']][(rnd() * 5) | 0];
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.065 * s, 0.065 * s, 1.75 * s, 12), std(0xfffaf2, 0.35));
   stick.position.y = 0.88 * s; g.add(stick);
@@ -343,7 +351,7 @@ function lollipop(g, s) {
   for (const sx of [-1, 1]) { const loop = new THREE.Mesh(new THREE.SphereGeometry(0.17 * s, 16, 12), bowM); loop.scale.set(1.3, 0.75, 0.55); loop.position.set(sx * 0.2 * s, 1.27 * s, 0.05 * s); loop.rotation.z = sx * 0.35; g.add(loop); }
   const knot = new THREE.Mesh(new THREE.SphereGeometry(0.09 * s, 12, 10), bowM); knot.position.set(0, 1.27 * s, 0.08 * s); g.add(knot);
 }
-function cupcake(g, s) {
+export function cupcake(g, s) {
   // a ridged paper cup, a three-tier swirl of icing, sprinkles and a cherry
   const cupGeo = new THREE.CylinderGeometry(0.62 * s, 0.46 * s, 0.7 * s, 36, 1);
   const cp = cupGeo.getAttribute('position');
@@ -359,7 +367,7 @@ function cupcake(g, s) {
   for (let i = 0; i < 26; i++) { const a = rr(0, 6.28), lvl = (rnd() * 3) | 0, R = [0.7, 0.55, 0.36][lvl] * s, Y = [0.9, 1.13, 1.32][lvl] * s; pts.push([Math.cos(a) * R, Y, Math.sin(a) * R]); }
   g.add(sprinkleMesh(pts, s));
 }
-function donut(g, s) {
+export function donut(g, s) {
   // a big donut standing on its edge: a golden ring, pastel glaze on the front with sprinkles
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62 * s, 0.32 * s, 24, 48), softM(0xf0b46c)); g.add(ring);
   const glazeGeo = new THREE.TorusGeometry(0.62 * s, 0.335 * s, 24, 48), gp = glazeGeo.getAttribute('position');
@@ -371,13 +379,13 @@ function donut(g, s) {
   g.add(sprinkleMesh(pts, s));
   g.position.y += 0.94 * s; g.rotation.y = rr(-0.3, 0.3); g.rotation.z = rr(-0.15, 0.15);
 }
-function cottonCandy(g, s) {
+export function cottonCandy(g, s) {
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * s, 0.06 * s, 1.5 * s, 10), std(0xfffaf2, 0.35)); stick.position.y = 0.75 * s; g.add(stick);
   const c = [0xffb3d8, 0x9fcdff, 0xc9adff, 0x9de8c8][(rnd() * 4) | 0];   // as strong as the pink one
   const m = new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.95, sheen: 1, sheenRoughness: 0.4, sheenColor: new THREE.Color(0xffffff), emissive: c, emissiveIntensity: 0.1 });
   [[0, 1.95, 0, 0.72], [0.42, 1.68, 0.12, 0.48], [-0.4, 1.72, 0.06, 0.5], [0.05, 2.4, -0.05, 0.42]].forEach(([x, y, z, r]) => { const b = new THREE.Mesh(blob(r * s, 0.14), m); b.position.set(x * s, y * s, z * s); g.add(b); });
 }
-function candyTree(parent, x, z, s, y) {
+export function candyTree(parent, x, z, s, y) {
   const g = new THREE.Group(); g.position.set(x, y, z);
   const k = rnd();
   if (k < 0.34) lollipop(g, s);
@@ -387,7 +395,7 @@ function candyTree(parent, x, z, s, y) {
   parent.add(shade(g));
   return g;
 }
-function crystalTree(parent, x, z, s, y) {
+export function crystalTree(parent, x, z, s, y) {
   const g = new THREE.Group(); g.position.set(x, y, z);
   const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.42 * s, 0), std(0x3a2f6e, 0.8, { flatShading: true }));
   rock.scale.y = 0.55; rock.position.y = 0.15 * s; g.add(rock);

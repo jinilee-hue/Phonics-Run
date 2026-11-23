@@ -441,8 +441,8 @@ export class Tata {
     const air = this.air, rising = clamp(st.vy / 8, -1, 1), lead = this.jumpSide;
 
     if (st.facing) this.facing = st.facing;
-    let wantYaw = this.facing * (Math.PI / 2 - 0.5);
-    if (st.mode === 'idle') { this.idleT += dt; if (this.idleT > 0.6) wantYaw = this.facing * 0.5; }
+    let wantYaw = st.yaw ?? this.facing * (Math.PI / 2 - 0.5);   // the run direction (yaw 0 = facing the camera)
+    if (st.mode === 'idle') { this.idleT += dt; if (this.idleT > 1.4) wantYaw = 0.35; }   // standing a while: looks round at us
     else if (st.mode === 'title') { this.idleT += dt; wantYaw = 0.28; }
     else this.idleT = 0;
     if (st.mode === 'enter') wantYaw = Math.PI;
@@ -468,7 +468,7 @@ export class Tata {
       L.hip.position.y = -0.02 + lerp(lift, rising > 0 && isLead ? 0.06 : 0.02, air);
       if (moving && s > 0.55 && L.prevC > 0 && cs <= 0) {
         const p = L.ankle.getWorldPosition(tmp);
-        this.puff(p.x - this.facing * 0.15, this.root.position.y + 0.06, p.z, -this.facing * (1 + Math.random()), 0.45, 0.42);
+        this.puff(p.x, this.root.position.y + 0.06, p.z, (Math.random() - 0.5) * 1.2, 0.45, 0.42);
       }
       L.prevC = cs;
     }

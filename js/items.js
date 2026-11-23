@@ -36,8 +36,8 @@ function faceTex(word) {
 }
 
 let rimNext = 0;
-export function makeCard(parent, word, isM, x, y) {
-  const root = new THREE.Group(); root.position.set(x, y, 0);
+export function makeCard(parent, word, isM, x, y, z = 0) {
+  const root = new THREE.Group(); root.position.set(x, y, z);
   const body = new THREE.Mesh(bodyGeo, rimMats[rimNext++ % rimMats.length]);
   body.castShadow = true;
   // the picture shows its own colours in every theme (unlit, not tone-mapped): a lit face took the pink sunset / night
@@ -47,7 +47,7 @@ export function makeCard(parent, word, isM, x, y) {
   const halo = new THREE.Sprite(haloMat.clone()); halo.scale.setScalar(2.9); halo.position.z = -0.15;
   root.add(halo, body, face);
   parent.add(root);
-  return { kind: 'card', word, m: isM, x, y, root, faceM, halo, state: 'idle', t: 0, spoken: -99, phase: rr(0, 6.28) };
+  return { kind: 'card', word, m: isM, x, y, z, root, faceM, halo, state: 'idle', t: 0, spoken: -99, phase: rr(0, 6.28) };
 }
 
 const coinGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.085, 36).rotateX(Math.PI / 2);
@@ -66,10 +66,10 @@ const coinMats = [
   new THREE.MeshStandardMaterial({ map: coinFace, roughness: 0.32, metalness: 0.2, emissive: 0xffc23a, emissiveIntensity: 0.25 }),
   new THREE.MeshStandardMaterial({ map: coinFace, roughness: 0.32, metalness: 0.2, emissive: 0xffc23a, emissiveIntensity: 0.25 }),
 ];
-export function makeCoin(parent, x, y) {
-  const mesh = new THREE.Mesh(coinGeo, coinMats); mesh.position.set(x, y, 0); mesh.castShadow = true;
+export function makeCoin(parent, x, y, z = 0) {
+  const mesh = new THREE.Mesh(coinGeo, coinMats); mesh.position.set(x, y, z); mesh.castShadow = true;
   parent.add(mesh);
-  return { kind: 'coin', x, y, mesh, state: 'idle', t: 0 };
+  return { kind: 'coin', x, y, z, mesh, state: 'idle', t: 0 };
 }
 
 /** visual update of every item (bob, spin, pick-up animations) */
@@ -78,7 +78,7 @@ export function updateItems(items, dt, T) {
     if (it.state === 'gone') continue;
     if (it.kind === 'coin') {
       const m = it.mesh;
-      if (it.state === 'idle') { m.rotation.y = T * 3.2 + it.x * 0.4; m.position.y = it.y + Math.sin(T * 3 + it.x) * 0.06; }
+      if (it.state === 'idle') { m.rotation.y = T * 3.2 + it.z * 0.4; m.position.y = it.y + Math.sin(T * 3 + it.z) * 0.06; }
       else {
         it.t += dt;
         m.position.y += dt * 5; m.rotation.y += dt * 22;
@@ -111,7 +111,7 @@ export function updateItems(items, dt, T) {
       if (u > 0.45) {
         const k = Math.max(0.001, 1 - (u - 0.45) / 0.2);
         R.scale.setScalar(k);
-        if (!it.poofed) { it.poofed = true; for (let i = 0; i < 5; i++) puff(it.x + rr(-0.6, 0.6), it.y + rr(-0.5, 0.5), 0.2, rr(-1.5, 1.5), rr(0.2, 1), 0.9); }
+        if (!it.poofed) { it.poofed = true; for (let i = 0; i < 5; i++) puff(it.x + rr(-0.6, 0.6), it.y + rr(-0.5, 0.5), it.z + 0.2, rr(-1.5, 1.5), rr(0.2, 1), 0.9); }
       }
       if (u > 0.65) { it.state = 'gone'; R.visible = false; }
     }
@@ -119,7 +119,7 @@ export function updateItems(items, dt, T) {
 }
 export function takeCard(it) {
   it.state = it.m ? 'got' : 'bad'; it.t = 0;
-  if (it.m) burst(new THREE.Vector3(it.x, it.y, 0.3), 0xfff3a0, 1);
+  if (it.m) burst(new THREE.Vector3(it.x, it.y, it.z + 0.3), 0xfff3a0, 1);
 }
 export function takeCoin(it) { it.state = 'taken'; it.t = 0; }
 void damp;

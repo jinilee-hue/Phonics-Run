@@ -61,10 +61,8 @@
   </div>
 
   <!-- touch controls -->
-  <div class="pad">
-    <button class="pbtn" id="bLeft" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button class="pbtn" id="bRight" aria-label="Right"><svg viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-  </div>
+  <!-- the stick (the video's left pad): drag the knob; arrows show the four ways -->
+  <div class="joy" id="joy" aria-label="Move"><i class="ar u"></i><i class="ar d"></i><i class="ar l"></i><i class="ar r"></i><div class="knob" id="knob"></div></div>
   <button class="pbtn jbtn" id="bJump" aria-label="Jump up"><svg viewBox="0 0 24 24"><path d="M6 13.5l6-6 6 6M6 19l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   <div class="hand" id="hand" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M25 30V10.5a4.5 4.5 0 0 1 9 0V27l2-.6a4.4 4.4 0 0 1 5.4 3l.2.7 1.6-.4a4.3 4.3 0 0 1 5.2 3l.2.8 1-.2a4.2 4.2 0 0 1 5 3.6l.9 8.3A14 14 0 0 1 41.6 60H35a14 14 0 0 1-11.2-5.6l-9.3-12.6a4.5 4.5 0 0 1 6.9-5.8L25 39z" fill="#fff" stroke="#4a2a7a" stroke-width="2.6" stroke-linejoin="round"/></svg></div>
   <button class="skip" id="skip">SKIP</button>
