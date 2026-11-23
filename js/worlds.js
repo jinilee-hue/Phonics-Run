@@ -535,9 +535,12 @@ export function updateWorld(dt, T, root, camPos) {
     a.needsUpdate = true;
     snowfall.position.set(camPos.x, camPos.y - 5, camPos.z - 12);
   }
-  root?.traverse(o => {
+  if (root && !root.userData.anim) {                           // (collected once per level, not searched every frame)
+    const a = root.userData.anim = []; root.traverse(o => { if (o.name === 'falls' || o.name === 'asteroid' || o.name === 'smoke') a.push(o); });
+  }
+  for (const o of root?.userData.anim || []) {
     if (o.name === 'falls') o.material.map.offset.y -= dt * 1.2;
     else if (o.name === 'asteroid') { o.rotation.x += dt * o.userData.spin; o.rotation.y += dt * o.userData.spin * 0.7; }
-    else if (o.name === 'smoke') { for (const p of o.children) { p.position.y = (p.position.y + dt * 0.4) % 1.2; p.material.opacity = 0.8 * (1 - p.position.y / 1.2); } }
-  });
+    else { for (const p of o.children) { p.position.y = (p.position.y + dt * 0.4) % 1.2; p.material.opacity = 0.8 * (1 - p.position.y / 1.2); } }
+  }
 }

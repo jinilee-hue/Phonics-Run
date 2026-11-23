@@ -166,6 +166,8 @@ function load(idx) {
   G.lv?.dispose();
   G.idx = idx;
   G.lv = buildLevel(LEVELS[idx]);
+  // build every shader of the new world now (a new kind of object coming into view first otherwise stalls a frame)
+  try { E.renderer.compile(E.scene, E.camera); } catch (e) { /* compile later, on first draw */ }
   A.preload([...G.lv.items.filter(i => i.kind === 'card').map(i => 'w:' + i.word), 's:m']);
   resetRun();
 }
@@ -807,7 +809,7 @@ window.PR = {
   teleport(d, y, x = 0) { P.x = x; P.y = y; P.z = -d; P.vx = 0; P.vy = 0; P.vz = 0; P.grounded = false; G.camY = y; cam.snap = true; },
   move: (x, z) => { joy.on = x !== 0 || z !== 0; joy.x = x; joy.z = z; drawJoy(); },
   give(n) { save.wallet = (save.wallet || 0) + n; writeSave(); drawLevels(); },
-  env: E, tata: runner,   // tests: lights, bloom, the character
+  env: E, tata: runner, get P() { return P; }, get lv() { return G.lv; }, get G() { return G; },   // tests
   sayCard: w => { app.classList.add('saying'); showSayCard(w, 0); const r = $('sayWord').getBoundingClientRect(); return { h: r.height, w: r.width, card: $('sayWord').parentElement.clientWidth, font: getComputedStyle($('sayWord')).fontSize }; },
   unlockAll() { for (const L of LEVELS) save.stars[L.id] = save.stars[L.id] || 1; drawLevels(); },   // tests
   shop: () => $('btnShop').click(), buy: id => shopTap(id, document.body), turn: y => { G.shopYaw = y; },
@@ -820,7 +822,12 @@ fontsReady.then(() => {
   refreshCoin();
   if (!CAPTURE) {
     let last = performance.now();
-    const loop = now => { const dt = Math.min(0.05, (now - last) / 1000); last = now; tick(dt); requestAnimationFrame(loop); };
+    // one bad frame must never stop the game (user: "멈추는 에러도 있는걸"): the error is logged and the loop goes on
+    const loop = now => {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      try { tick(dt); } catch (e) { console.error('frame error', e); }
+      requestAnimationFrame(loop);
+    };
     requestAnimationFrame(loop);
   }
 });
