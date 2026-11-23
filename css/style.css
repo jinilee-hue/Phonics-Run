@@ -297,9 +297,11 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
     0 calc(1.1 * var(--u)) 0 rgba(110,80,210,.45), 0 calc(2 * var(--u)) calc(2.4 * var(--u)) rgba(30,30,110,.28); }
 .pbtn svg { filter: drop-shadow(0 calc(.35 * var(--u)) 0 #5a33c8) drop-shadow(0 calc(.6 * var(--u)) calc(.6 * var(--u)) rgba(40,20,100,.4)); }
 .pbtn.on { transform: translateY(calc(.8 * var(--u))) scale(.97); box-shadow: inset 0 calc(.5 * var(--u)) calc(.6 * var(--u)) rgba(255,255,255,.85), inset 0 calc(-1 * var(--u)) calc(1.6 * var(--u)) rgba(80,50,180,.32), 0 calc(.3 * var(--u)) 0 rgba(110,80,210,.45); color: #fff; }
-/* the glove (3D render): the fingertip lands on the point */
-.hand { width: calc(12 * var(--u)); height: calc(12 * var(--u)); filter: drop-shadow(0 calc(.8 * var(--u)) calc(1 * var(--u)) rgba(40,20,90,.35)); }
-.hand img { width: 100%; height: 100%; transform: translate(-32%, -6%); }
+/* the hint glove: the same picture as every other phonics game (assets/img/hand.webp, 240 x 320, fingertip at 37.5 % / 0 %),
+   placed so the fingertip is on the point and tapping round it */
+.hand { width: calc(12 * var(--u)); height: calc(16 * var(--u)); margin-left: calc(-.375 * 12 * var(--u)); transform-origin: 37.5% 0;
+  filter: drop-shadow(0 calc(.6 * var(--u)) calc(1 * var(--u)) rgba(0,0,0,.3)); }
+.hand img { width: 100%; height: 100%; display: block; }
 .hand svg { display: none; }
 /* logo: extruded lettering */
 .logo { filter: drop-shadow(0 calc(1.4 * var(--u)) calc(1.4 * var(--u)) rgba(30,10,90,.35)); }

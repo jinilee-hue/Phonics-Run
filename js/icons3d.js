@@ -1,5 +1,5 @@
 // UI icons as real 3D renders (user 2026-11-23: "그래픽 2d로 된것도 다 3d 스타일로 바꿔야함"): hearts, the m coin, stars,
-// the glove hand, a padlock, the shop items and a cracked heart are small three.js models rendered once into PNG data
+// a padlock, the shop items and a cracked heart are small three.js models rendered once into PNG data
 // URLs (a second, throw-away WebGL context) and used as <img> / CSS variables by the page.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -111,17 +111,6 @@ function star(on) {
   if (on) g.add(shine(-0.32, 0.42, 0.36, 0.18, 0.08));
   return g;
 }
-function glove() {
-  // a white cartoon glove pointing up (index finger), the other fingers curled, a cuff
-  const g = new THREE.Group(), w = matte(0xffffff, { roughness: 0.45 }), line = matte(0xe9e2f8);
-  const palm = new THREE.Mesh(new THREE.SphereGeometry(0.62, 32, 24), w); palm.scale.set(1, 0.95, 0.72); g.add(palm);
-  const index = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.75, 8, 16), w); index.position.set(-0.22, 0.92, 0.05); index.rotation.z = 0.08; g.add(index);
-  for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), w); f.scale.set(1, 0.9, 1.1); f.position.set(0.05 + i * 0.25, 0.42 - i * 0.06, 0.38); g.add(f); }
-  const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.32, 6, 12), w); thumb.position.set(-0.6, 0.08, 0.18); thumb.rotation.z = 0.9; g.add(thumb);
-  const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.14, 12, 32), line); cuff.rotation.x = Math.PI / 2; cuff.position.y = -0.62; g.add(cuff);
-  g.rotation.z = 0.35;
-  return g;
-}
 function padlock() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new RoundedBoxGeometry(1.5, 1.2, 0.6, 4, 0.22), glossy(0xb9add8, { roughness: 0.4 }));
@@ -192,7 +181,6 @@ export function renderIcons() {
     heartOn: shot(heart(true)), heartOff: shot(heart(false)),
     coin: shot(coin(), { yaw: -0.45, pitch: -0.15 }),
     starOn: shot(star(true), { pitch: -0.12 }), starOff: shot(star(false), { pitch: -0.12 }),
-    glove: shot(glove(), { yaw: 0.35, pitch: -0.2 }),
     lock: shot(padlock(), { yaw: -0.35, pitch: -0.15 }),
     shades: shot(shades(), { yaw: -0.35, pitch: -0.12 }), cape: shot(cape(), { yaw: -0.4 }), crown: shot(crown(), { yaw: 0.2 }), goldshoes: shot(goldShoe()),
   };

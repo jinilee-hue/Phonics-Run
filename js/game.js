@@ -199,7 +199,7 @@ function pointHand(id) {
   if (!id) { h.classList.remove('show'); return; }
   const b = $(id), r = b.getBoundingClientRect();
   b.classList.add('guide');
-  h.style.left = (r.left + r.width * 0.42) + 'px'; h.style.top = (r.top + r.height * 0.45) + 'px';
+  h.style.left = (r.left + r.width * 0.5) + 'px'; h.style.top = (r.top + r.height * 0.5) + 'px';   // the fingertip (CSS) on the button's middle
   h.classList.add('show');
 }
 async function teachDemo() {
@@ -693,7 +693,7 @@ $('cNext').addEventListener('click', () => { const n = Math.min(LEVELS.length - 
 addEventListener('resize', () => { E.onResize(); if (G.auto) pointHand($('bJump').classList.contains('guide') ? 'bJump' : $('bRight').classList.contains('guide') ? 'bRight' : null); });
 
 // ---------------------------------------------------------------- 3D pictures in the page
-$('hand').innerHTML = `<img src="${ICON.glove}" alt="" draggable="false">`;
+$('hand').innerHTML = '<img src="assets/img/hand.webp" alt="" draggable="false">';   // the hint glove of every phonics game (same file)
 document.querySelector('.bigheart').innerHTML = `<img src="${ICON.broken}" alt="" draggable="false">`;
 
 // ---------------------------------------------------------------- boot
