@@ -15,6 +15,13 @@
 </head>
 <body>
 <div id="app" data-screen="title">
+  <!-- ribbon tails + folds (Toy Catch's result ribbon: a swallowtail with rounded corners, a fold under the band) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="rbTail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f97aa6"/><stop offset=".22" stop-color="#ef5288"/><stop offset=".6" stop-color="#df396f"/><stop offset="1" stop-color="#c2255a"/></linearGradient>
+    <linearGradient id="rbFold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8e1240"/><stop offset="1" stop-color="#b01d50"/></linearGradient>
+    <linearGradient id="rbTailG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c4bdd8"/><stop offset=".22" stop-color="#ada5c6"/><stop offset=".6" stop-color="#958cb2"/><stop offset="1" stop-color="#7d749c"/></linearGradient>
+    <linearGradient id="rbFoldG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f4870"/><stop offset="1" stop-color="#635a84"/></linearGradient>
+  </defs></svg>
   <div id="stage3d"></div>
   <div id="flash"></div>
 
@@ -75,7 +82,7 @@
   <!-- shop: Tata on the left wears what is picked; the shelf on the right -->
   <section class="screen s-shop">
     <div class="shelf">
-      <div class="ribbon">SHOP</div>
+      <div class="ribbon"><i class="rb-tail l"><svg viewBox="0 0 95 130" preserveAspectRatio="none" aria-hidden="true"><path d="M95 32 L5 32 L31 77 L5 122 L95 122 Z" fill="url(#rbTail)" stroke="url(#rbTail)" stroke-width="8" stroke-linejoin="round"/><path d="M75 96 L95 96 L95 123 L75 99.5 Z" fill="url(#rbFold)"/></svg></i><i class="rb-tail r"><svg viewBox="0 0 95 130" preserveAspectRatio="none" aria-hidden="true"><path d="M95 32 L5 32 L31 77 L5 122 L95 122 Z" fill="url(#rbTail)" stroke="url(#rbTail)" stroke-width="8" stroke-linejoin="round"/><path d="M75 96 L95 96 L95 123 L75 99.5 Z" fill="url(#rbFold)"/></svg></i><span class="rb-band">SHOP</span></div>
       <div class="wallet"><i class="coin-ic"><b>m</b></i><b id="wallet">0</b></div>
       <div class="items" id="items"></div>
       <button class="rbtn go" id="shopClose" aria-label="Done"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -85,7 +92,7 @@
   <!-- level clear -->
   <section class="screen s-clear">
     <div class="card">
-      <div class="ribbon">LEVEL CLEAR!</div>
+      <div class="ribbon"><i class="rb-tail l"><svg viewBox="0 0 95 130" preserveAspectRatio="none" aria-hidden="true"><path d="M95 32 L5 32 L31 77 L5 122 L95 122 Z" fill="url(#rbTail)" stroke="url(#rbTail)" stroke-width="8" stroke-linejoin="round"/><path d="M75 96 L95 96 L95 123 L75 99.5 Z" fill="url(#rbFold)"/></svg></i><i class="rb-tail r"><svg viewBox="0 0 95 130" preserveAspectRatio="none" aria-hidden="true"><path d="M95 32 L5 32 L31 77 L5 122 L95 122 Z" fill="url(#rbTail)" stroke="url(#rbTail)" stroke-width="8" stroke-linejoin="round"/><path d="M75 96 L95 96 L95 123 L75 99.5 Z" fill="url(#rbFold)"/></svg></i><span class="rb-band">LEVEL CLEAR!</span></div>
       <div class="stars" id="stars"></div>
       <div class="got" id="gotList"></div>
       <div class="coinline"><i class="coin-ic"><b>m</b></i><b id="coinsEnd">0</b></div>
@@ -100,7 +107,7 @@
   <!-- out of hearts -->
   <section class="screen s-over">
     <div class="card">
-      <div class="ribbon grey">OOPS!</div>
+      <div class="ribbon grey"><i class="rb-tail l"><svg viewBox="0 0 95 130" preserveAspectRatio="none" aria-hidden="true"><path d="M95 32 L5 32 L31 77 L5 122 L95 122 Z" fill="url(#rbTailG)" stroke="url(#rbTailG)" stroke-width="8" stroke-linejoin="round"/><path d="M75 96 L95 96 L95 123 L75 99.5 Z" fill="url(#rbFoldG)"/></svg></i><i class="rb-tail r"><svg viewBox="0 0 95 130" preserveAspectRatio="none" aria-hidden="true"><path d="M95 32 L5 32 L31 77 L5 122 L95 122 Z" fill="url(#rbTailG)" stroke="url(#rbTailG)" stroke-width="8" stroke-linejoin="round"/><path d="M75 96 L95 96 L95 123 L75 99.5 Z" fill="url(#rbFoldG)"/></svg></i><span class="rb-band">OOPS!</span></div>
       <div class="bigheart"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
       <div class="btns">
         <button class="rbtn" id="oHome" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5M6.5 9.5V19h11V9.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>

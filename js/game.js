@@ -560,9 +560,13 @@ $('sayJump').addEventListener('click', () => { if (G.phase !== 'say' || G.jumped
 $('sayListen').addEventListener('click', () => { if (G.phase === 'say' && !A.voiceBusy() && $('sayMic').className !== 'smic listen') chant($('sayWord').dataset.w); });
 function showSayCard(w, i) {
   $('sayImg').src = `assets/words/${w}.png`;
-  $('sayWord').innerHTML = mWord(w); $('sayWord').dataset.w = w;
   $('sayMic').className = 'smic';
-  const s = $('say'); s.classList.remove('in'); void s.offsetWidth; s.classList.add('show', 'in');
+  const box = $('say'); box.classList.remove('in'); void box.offsetWidth; box.classList.add('show', 'in');   // visible first: then it can be measured
+  const sw = $('sayWord');
+  sw.innerHTML = mWord(w); sw.dataset.w = w; sw.style.fontSize = '';
+  // one line always (user: "단어가 두줄로 되지 않게 해"): shrink a long word (mushroom, monkey) to the card's width
+  const maxW = sw.parentElement.clientWidth * 0.9;
+  for (let k = 0; k < 12 && sw.scrollWidth > maxW; k++) sw.style.fontSize = (parseFloat(getComputedStyle(sw).fontSize) * 0.92) + 'px';
   void i;
 }
 function showSayDots() { $('sayDots').innerHTML = G.got.map(() => '<i></i>').join(''); }
@@ -732,6 +736,7 @@ window.PR = {
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; P.grounded = false; G.camY = y; cam.x = clampCamX(x + 2); cam.y = y; },
   give(n) { save.wallet = (save.wallet || 0) + n; writeSave(); drawLevels(); },
   env: E,   // tests: lights, bloom
+  sayCard: w => { showSayCard(w, 0); const r = $('sayWord').getBoundingClientRect(); return { h: r.height, w: r.width, card: $('sayWord').parentElement.clientWidth, font: getComputedStyle($('sayWord')).fontSize }; },
   unlockAll() { for (const L of LEVELS) save.stars[L.id] = save.stars[L.id] || 1; drawLevels(); },   // tests
   shop: () => $('btnShop').click(), buy: id => shopTap(id, document.body),
   get state() { return { screen: G.screen, phase: G.phase, x: P.x, y: P.y, vx: P.vx, vy: P.vy, grounded: P.grounded, hearts: G.hearts, coins: G.coins, got: [...G.got], said: [...G.said], words: G.lv.words, wallet: save.wallet, wear: [...save.wear], demo: !!G.auto, t: G.t }; },

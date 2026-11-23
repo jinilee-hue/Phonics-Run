@@ -12,7 +12,7 @@ const bodyGeo = (() => {
 const faceGeo = shapeUV(new THREE.ShapeGeometry(roundRect(CW - 0.02, CW - 0.02, CR - 0.01), 10), -(CW - 0.02) / 2, -(CW - 0.02) / 2, CW - 0.02, CW - 0.02);
 const RIMS = [0xff7ab8, 0x4fb3ff, 0xffc93a, 0x5fd6a8, 0xa57bff];
 const rimMats = RIMS.map(c => std(c, 0.5));
-const haloMat = new THREE.SpriteMaterial({ map: sparkTex, color: 0xfff6c0, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+const haloMat = new THREE.SpriteMaterial({ map: sparkTex, color: 0xfff6c0, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
 
 const faceCache = {};
 function faceTex(word) {
@@ -40,7 +40,9 @@ export function makeCard(parent, word, isM, x, y) {
   const root = new THREE.Group(); root.position.set(x, y, 0);
   const body = new THREE.Mesh(bodyGeo, rimMats[rimNext++ % rimMats.length]);
   body.castShadow = true;
-  const faceM = new THREE.MeshStandardMaterial({ map: faceTex(word), roughness: 0.6, emissive: 0xffffff, emissiveMap: faceTex(word), emissiveIntensity: TH.cardGlow });
+  // the picture shows its own colours in every theme (unlit, not tone-mapped): a lit face took the pink sunset / night
+  // light and the bloom and looked washed out (user: "카드가 뿌옇게 보이는 맵들도 있어")
+  const faceM = new THREE.MeshBasicMaterial({ map: faceTex(word), toneMapped: false });
   const face = new THREE.Mesh(faceGeo, faceM); face.position.z = 0.096;
   const halo = new THREE.Sprite(haloMat.clone()); halo.scale.setScalar(2.9); halo.position.z = -0.15;
   root.add(halo, body, face);
@@ -90,7 +92,7 @@ export function updateItems(items, dt, T) {
       R.position.y = it.y + Math.sin(T * 2 + it.phase) * 0.1;
       R.rotation.y = Math.sin(T * 1.1 + it.phase) * 0.28;
       R.rotation.z = Math.sin(T * 1.6 + it.phase) * 0.04;
-      it.halo.material.opacity = 0.34 + 0.12 * Math.sin(T * 3 + it.phase);
+      it.halo.material.opacity = 0.16 + 0.06 * Math.sin(T * 3 + it.phase);
       const pulse = it.pulse > 0 ? (it.pulse -= dt, 1 + 0.12 * Math.sin((1 - it.pulse / 0.5) * Math.PI)) : 1;
       R.scale.setScalar(pulse);
     } else if (it.state === 'got') {
@@ -106,7 +108,6 @@ export function updateItems(items, dt, T) {
       const u = it.t;
       R.position.x = it.x + Math.sin(u * 50) * 0.12 * Math.max(0, 1 - u / 0.45);
       it.faceM.color.setScalar(1 - 0.45 * Math.min(1, u / 0.2));
-      it.faceM.emissiveIntensity = 0;
       if (u > 0.45) {
         const k = Math.max(0.001, 1 - (u - 0.45) / 0.2);
         R.scale.setScalar(k);

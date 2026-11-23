@@ -374,3 +374,25 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .pad .pbtn { width: calc(13 * var(--u)); height: calc(13 * var(--u)); }
 .jbtn { right: calc(2.4 * var(--u)); bottom: calc(1.4 * var(--u)); width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
 .skip { right: calc(2.4 * var(--u)); bottom: calc(20 * var(--u)); }
+
+/* result ribbons = Toy Catch's (user 2026-11-23: "리본도 깨지지 않은걸로 바꿔. 다른 파닉스 게임들 좀 참조해"): one rounded band
+   with the title, swallowtails with rounded corners behind it and a dark fold under each end of the band */
+.ribbon { top: calc(-6.4 * var(--u)); height: calc(11.4 * var(--u)); padding: 0; background: none; box-shadow: none; border-radius: 0;
+  -webkit-text-stroke: 0; filter: drop-shadow(0 calc(.8 * var(--u)) calc(.9 * var(--u)) rgba(130,20,60,.3)); }
+.ribbon::before, .ribbon::after { content: none; }
+.rb-tail { position: absolute; top: 0; width: calc(10.8 * var(--u)); height: calc(14.8 * var(--u)); }
+.rb-tail svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.rb-tail.l { left: calc(-8.5 * var(--u)); }
+.rb-tail.r { right: calc(-8.5 * var(--u)); transform: scaleX(-1); }
+.rb-band { position: relative; display: grid; place-items: center; height: 100%; padding: calc(.8 * var(--u)) calc(6 * var(--u)) 0; white-space: nowrap;
+  font: 800 calc(7.2 * var(--u)) / 1 var(--font); color: #fff; letter-spacing: .04em;
+  -webkit-text-stroke: calc(.9 * var(--u)) #b8243f; paint-order: stroke fill; text-shadow: 0 calc(.45 * var(--u)) 0 #8e1240;
+  background: linear-gradient(#ff86b0, #ff5089 55%, #ec3a72);
+  border-radius: calc(1.8 * var(--u)) calc(1.8 * var(--u)) calc(.5 * var(--u)) calc(.5 * var(--u));
+  box-shadow: inset 0 calc(1 * var(--u)) calc(1.2 * var(--u)) rgba(255,255,255,.4), inset 0 calc(-1.4 * var(--u)) calc(1.4 * var(--u)) rgba(176,22,76,.5); }
+.ribbon.grey { filter: drop-shadow(0 calc(.8 * var(--u)) calc(.9 * var(--u)) rgba(60,50,90,.3)); }
+.ribbon.grey .rb-band { background: linear-gradient(#cfc8e2, #aba2c8 55%, #958bb6); -webkit-text-stroke-color: #6d6585; text-shadow: 0 calc(.45 * var(--u)) 0 #4f4870;
+  box-shadow: inset 0 calc(1 * var(--u)) calc(1.2 * var(--u)) rgba(255,255,255,.45), inset 0 calc(-1.4 * var(--u)) calc(1.4 * var(--u)) rgba(80,70,120,.45); }
+.card, .shelf { padding-top: calc(11 * var(--u)); }
+
+.say-word { white-space: nowrap; max-width: 100%; text-align: center; }   /* never two lines (game.js shrinks long words to fit) */

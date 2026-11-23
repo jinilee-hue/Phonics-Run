@@ -51,12 +51,16 @@ function heartShape() {
   s.bezierCurveTo(1.1, -0.25, 0.35, -0.7, 0, -1.0);
   return s;
 }
-function starShape(n = 5, R = 1, rIn = 0.5) {
-  const s = new THREE.Shape();
-  for (let i = 0; i < n * 2; i++) {
-    const a = Math.PI / 2 + (i * Math.PI) / n, rr = i % 2 ? rIn : R;
-    const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
-    i ? s.lineTo(x, y) : s.moveTo(x, y);
+/** a chubby star with ROUNDED tips and inner corners (user: "별 라운드 둥글게") */
+function starShape(n = 5, R = 1, rIn = 0.56, rTip = 0.26, rIn2 = 0.12) {
+  const pts = [];
+  for (let i = 0; i < n * 2; i++) { const a = Math.PI / 2 + (i * Math.PI) / n, r = i % 2 ? rIn : R; pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r)); }
+  const s = new THREE.Shape(), N = pts.length;
+  for (let i = 0; i < N; i++) {
+    const p = pts[i], prev = pts[(i + N - 1) % N], next = pts[(i + 1) % N], k = i % 2 ? rIn2 : rTip;
+    const a = p.clone().lerp(prev, k), b = p.clone().lerp(next, k);
+    i ? s.lineTo(a.x, a.y) : s.moveTo(a.x, a.y);
+    s.quadraticCurveTo(p.x, p.y, b.x, b.y);
   }
   s.closePath();
   return s;
@@ -107,7 +111,8 @@ function coin() {
 }
 function star(on) {
   const g = new THREE.Group();
-  g.add(new THREE.Mesh(ext(starShape(), 0.3, 0.18), on ? glossy(0xffc83a, { metalness: 0.25, emissive: 0x5a3800, emissiveIntensity: 0.2 }) : matte(0xe6e0f4)));
+  const geo = new THREE.ExtrudeGeometry(starShape(), { depth: 0.26, bevelEnabled: true, bevelThickness: 0.26, bevelSize: 0.16, bevelSegments: 8, curveSegments: 20 }); geo.center();
+  g.add(new THREE.Mesh(geo, on ? glossy(0xffc83a, { metalness: 0.25, emissive: 0x5a3800, emissiveIntensity: 0.2 }) : matte(0xe6e0f4)));
   if (on) g.add(shine(-0.32, 0.42, 0.36, 0.18, 0.08));
   return g;
 }
