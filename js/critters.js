@@ -194,10 +194,10 @@ export function polarBear() {
     b.add(ball(0.17, 0.15, 0.27, fur, sx * 0.26, 0.15, 0.24));                                 // hind leg, forward
     b.add(ball(0.1, 0.11, 0.035, pad, sx * 0.26, 0.16, 0.5, 12));                              // sole
     for (const tx of [-0.07, 0, 0.07]) b.add(ball(0.03, 0.03, 0.02, pad, sx * 0.26 + tx, 0.29, 0.47, 8));   // toe pads
-    // the arm lies down the front of the round body, from the shoulder to a round paw resting on the tummy just above
-    // the leg — both ends sit on the body's surface, so it reads as an arm, not a lump (user 2026-11-24 "곰돌이 팔은 아직 좀 어색")
-    b.add(limb(new THREE.Vector3(sx * 0.4, 0.8, 0.17), new THREE.Vector3(sx * 0.25, 0.4, 0.42), 0.125, fur));
-    b.add(ball(0.125, 0.115, 0.12, fur, sx * 0.24, 0.37, 0.45));                               // paw
+    // short stubby teddy arms (user 2026-11-24 "곰들 팔 아직 어색해" — long tubes hung down the sides like sticks): a plump
+    // oval half sunk into the front of the body, from the shoulder slanting forward and in, its end a round paw on the tummy
+    const arm = ball(0.125, 0.2, 0.13, fur, sx * 0.31, 0.55, 0.3); arm.rotation.set(-0.55, 0, -sx * 0.42); b.add(arm);
+    const pp = ball(0.055, 0.045, 0.025, pad, sx * 0.235, 0.4, 0.475, 10); pp.rotation.set(-0.5, 0, 0); b.add(pp);   // paw pad, on the arm's end
   }
   const h = new THREE.Group(); h.position.set(0, 1.12, 0.12); b.add(h);
   h.add(ball(0.36, 0.32, 0.32, fur));
