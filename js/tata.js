@@ -460,7 +460,7 @@ export class Tata {
     if (st.facing) this.facing = st.facing;
     let wantYaw = st.yaw ?? this.facing * (Math.PI / 2 - 0.5);   // the run direction (yaw 0 = facing the camera)
     if (st.mode === 'idle') { this.idleT += dt; if (this.idleT > 1.4) wantYaw = st.idleYaw ?? 0.35; }   // standing a while: looks round at us
-    else if (st.mode === 'title') { this.idleT += dt; wantYaw = 0.28; }
+    else if (st.mode === 'title') { this.idleT += dt; const w = this.idleT % 4.2; wantYaw = w > 0.9 && w < 3.3 ? 0 : 0.28; }   // faces us while she waves
     else this.idleT = 0;
     if (st.mode === 'enter') wantYaw = Math.PI;
     if (st.mode === 'cheer') wantYaw = 0;
@@ -559,7 +559,7 @@ export class Tata {
         A.sh.rotation.z = lerp(A.sh.rotation.z, A.s * 1.7, k); A.sh.rotation.x = lerp(A.sh.rotation.x, -0.25, k);
         A.elbow.rotation.x = lerp(A.elbow.rotation.x, 0, k);
         A.elbow.rotation.z = k * A.s * (1.05 + 0.32 * Math.sin(w * 10));
-        A.elbow.rotation.y = -k * A.s * 1.2;   // the palm toward us — a twist about the forearm itself (order ZYX: twist,
+        A.elbow.rotation.y = k * A.s * Math.PI / 2;   // the palm to the front — a quarter twist about the forearm itself (ZYX: twist,
         A.elbow.rotation.order = 'ZYX';        // then the bend), so the forearm stays upright instead of swinging forward
       }
     }

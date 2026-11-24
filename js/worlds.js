@@ -385,26 +385,41 @@ const pineM = () => once('pineM', () => { const m = new THREE.MeshStandardMateri
   m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',
     '#include <emissivemap_fragment>\n  { float w = smoothstep(0.82, 0.97, min(vColor.r, min(vColor.g, vColor.b))); totalEmissiveRadiance += vec3(0.86, 0.9, 1.0) * 0.42 * w; }'); };
   m.customProgramCacheKey = () => 'pineSnowGlow'; return m; });
+const sstep01 = u => { const v = Math.min(1, Math.max(0, u)); return v * v * (3 - 2 * v); };
 function pineGeo(v) {
-  return once('pine' + v, () => {
-    const parts = [], green = [0x2f9160, 0x277d52, 0x35996a, 0x2a8558][v], white = 0xf8fbff, lump = sphG(10);
+  // the snow is part of each green tier now — painted on its top surface down to a wavy line and swelling it a little —
+  // instead of a separate white cap on top (user 2026-11-24 "여전히 회색과 눈 쌓인게 어색한데": the caps' undersides showed
+  // as grey bands and they looked like plates stacked on the tree). The branch tips droop in soft scallops.
+  return once('pine2_' + v, () => {
+    const parts = [], green = new THREE.Color([0x2f9160, 0x277d52, 0x35996a, 0x2a8558][v]), dark = green.clone().multiplyScalar(0.62);
+    const snow = new THREE.Color(0xf8fbff), c = new THREE.Color();
     parts.push([new THREE.CylinderGeometry(0.13, 0.18, 0.6, 8), 0x7a4e2c, MX(0, 0.3, 0)]);
     const tiers = [[1.0, 0.42, 0.9], [0.8, 1.0, 0.82], [0.6, 1.52, 0.72], [0.38, 1.98, 0.62]];
-    tiers.forEach(([r, y, h], i) => {
-      const V2 = a => a.map(([q, w]) => new THREE.Vector2(q, w));
-      // rounder (user 2026-11-24 "눈쌓인게 좀 어색해. 다 각져서"): 28 sides for the green tiers, 56 for the snow caps
-      parts.push([new THREE.LatheGeometry(V2([[0, h], [r * 0.28, h * 0.72], [r * 0.7, h * 0.28], [r, 0.04], [r * 0.94, -0.05], [r * 0.5, -0.02], [0, 0.02]]), 28), green, MX(0, y, 0)]);
-      const cap = new THREE.LatheGeometry(V2([[0, h + 0.07], [r * 0.3, h * 0.74 + 0.06], [r * 0.6, h * 0.4 + 0.06], [r * 0.78, h * 0.27 + 0.04], [r * 0.84, h * 0.21], [r * 0.81, h * 0.19], [r * 0.55, h * 0.29], [0, h * 0.5]]), 56);
-      const cp = cap.getAttribute('position'), ph = rr(0, 6);
-      for (let k = 0; k < cp.count; k++) {                                   // the rim droops in soft drips
-        const x = cp.getX(k), z = cp.getZ(k), rad = Math.hypot(x, z) / r;
-        // soft round scallops (a smooth bump per drip) instead of sharp zigzags
-        if (rad > 0.55) { const a = Math.atan2(z, x), b = 0.5 + 0.5 * Math.sin(a * 7 + ph); cp.setY(k, cp.getY(k) - (rad - 0.55) / 0.3 * h * 0.13 * b * b); }
+    tiers.forEach(([r, y, h]) => {
+      // bottom-up (outward normals): the underside first, then the rim, then up the slope to the tip; TOP0 = the first slope point
+      const slope = [[r, 0.04], [r * 0.92, h * 0.09], [r * 0.82, h * 0.17], [r * 0.7, h * 0.28], [r * 0.56, h * 0.42], [r * 0.42, h * 0.56], [r * 0.28, h * 0.72], [r * 0.14, h * 0.86], [0, h]];
+      const dense = []; for (let i = 0; i < slope.length - 1; i++) for (let q = 0; q < 4; q++) { const [a0, b0] = slope[i], [a1, b1] = slope[i + 1], u = q / 4; dense.push([a0 + (a1 - a0) * u, b0 + (b1 - b0) * u]); }
+      dense.push(slope[slope.length - 1]);   // (fine steps up the slope so the wavy snow line stays smooth, not streaky)
+      const prof = [[0, 0.02], [r * 0.5, -0.02], [r * 0.95, -0.05], ...dense], TOP0 = 3, L = Math.hypot(r, h);
+      const geo = new THREE.LatheGeometry(prof.map(([q, w]) => new THREE.Vector2(q, w)), 64);
+      const p = geo.getAttribute('position'), col = new Float32Array(p.count * 3), ph = rr(0, 6), ph2 = rr(0, 6);
+      for (let k = 0; k < p.count; k++) {
+        const x = p.getX(k), y0 = p.getY(k), z = p.getZ(k), rad = Math.hypot(x, z) / r, a = Math.atan2(z, x), top = k % prof.length >= TOP0;
+        // the snow line: wavy, lower in drips
+        const line = 0.66 + 0.13 * Math.sin(a * 6 + ph2);   // (smooth waves: a finer ripple read as a ragged edge)
+        const w = top ? sstep01((line + 0.07 - rad) / 0.14) : 0;
+        // branch tips droop in scallops; snow swells the surface a little (thickest mid-slope)
+        let yy = y0; if (rad > 0.55) { const b = 0.5 + 0.5 * Math.sin(a * 8 + ph); yy -= (rad - 0.55) / 0.45 * h * 0.12 * b * b; }
+        const sw = 0.045 * w * Math.sin(Math.PI * Math.min(1, rad / Math.max(0.2, line)));
+        const hz = Math.hypot(x, z) || 1, nx = x / hz * h / L, ny = r / L, nz = z / hz * h / L;   // the cone's outward normal
+        p.setXYZ(k, x + nx * sw, yy + ny * sw, z + nz * sw);
+        c.copy(top ? green : dark).lerp(snow, w);
+        col.set([c.r, c.g, c.b], k * 3);
       }
-      cap.computeVertexNormals();
-      parts.push([cap, white, MX(0, y, 0)]);
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
+      parts.push([geo, null, MX(0, y, 0)]);
     });
-    parts.push([lump, white, MX(0, 1.98 + 0.66, 0, 0.13)]);
+    parts.push([sphG(12), 0xf8fbff, MX(0, 1.98 + 0.63, 0, 0.12)]);
     return mergeColored(parts);
   });
 }
@@ -917,13 +932,14 @@ function clouds(parent, dEnd, sea) {
 export function step(parent, w, d, theme) {
   const g = new THREE.Group();
   if (theme === 'snow') {                                      // an ice bridge
-    const m = new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, roughness: 0.12, clearcoat: 1, transparent: true, opacity: 0.88 });
+    // opaque ice: through the see-through slab the icicles looked detached from it (user 2026-11-24 "고드름이 위에 판에 붙지 않았어")
+    const m = new THREE.MeshPhysicalMaterial({ color: 0x9fd6f8, roughness: 0.15, clearcoat: 0.6, clearcoatRoughness: 0.2 });
     const b = new THREE.Mesh(new RoundedBoxGeometry(w, 0.7, d, 3, 0.2), m); b.position.y = -0.35; g.add(b);
     const s = new THREE.Mesh(new RoundedBoxGeometry(w + 0.1, 0.3, d + 0.1, 3, 0.14), SNOW()); s.position.y = -0.13; g.add(s);
     const puff = inst(sphG(14), SNOW()), ice = inst(coneG(), icicleM());
     for (let x = -w / 2 + 0.2; x < w / 2; x += 0.42) for (const sz of [-1, 1]) puff.add(x, -0.12, sz * (d / 2 + 0.02), 0.28, 0.2, 0.26);
     for (let z = -d / 2 + 0.2; z < d / 2; z += 0.42) for (const sx of [-1, 1]) puff.add(sx * (w / 2 + 0.02), -0.12, z, 0.26, 0.2, 0.28);
-    for (let x = -w / 2 + 0.25; x < w / 2; x += 0.32) for (const sz of [-1, 1]) { if (rnd() < 0.25) continue; const L = rr(0.35, 0.9); ice.add(x, -0.7 - L / 2, sz * (d / 2 - 0.12), 0.07, L, 0.07, 0, Math.PI, rnd() < 0.35 ? pick(RAINBOW_ICE) : 0xd8f0ff); }
+    for (let x = -w / 2 + 0.25; x < w / 2; x += 0.32) for (const sz of [-1, 1]) { if (rnd() < 0.25) continue; const L = rr(0.45, 1.0); ice.add(x, -0.58 - L / 2, sz * (d / 2 - 0.16), 0.07, L, 0.07, 0, Math.PI, rnd() < 0.35 ? pick(RAINBOW_ICE) : 0xd8f0ff); }
     puff.build(g); ice.build(g);
   } else if (theme === 'candy') {                              // a slice of layer cake
     const layers = [[0x6c3a20, 0.3], [0xf6e6d0, 0.08], [0x8a4a26, 0.3]];

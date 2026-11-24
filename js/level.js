@@ -193,6 +193,12 @@ export function buildLevel(L, side = false) {
     }
   }
 
+  // no coin inside a picture card (the side view moves trap cards back from gaps, sometimes onto a coin — user 2026-11-24
+  // "코인과 카드가 겹쳐져서 뚫리는 현상"): such a coin is left out
+  for (let i = items.length - 1; i >= 0; i--) {
+    const c = items[i];
+    if (c.kind === 'coin' && items.some(k => k.kind === 'card' && Math.abs(k.x - c.x) < 1.0 && Math.abs(k.z - c.z) < 1.0 && Math.abs(k.y - c.y) < 1.05)) { root.remove(c.mesh); items.splice(i, 1); }
+  }
   if (side) for (const it of items) if (it.kind === 'card') it.face = Math.PI / 2;
   W.backdrop(root, th, dMax);
   W.below(root, th, dMax);
