@@ -419,7 +419,8 @@ export class Tata {
     };
     const make = id => {
       if (this.outfit[id]) return this.outfit[id];
-      if (id === 'goldshoes') return (this.outfit[id] = { userData: { gold: new THREE.MeshPhysicalMaterial({ color: 0xffc23a, roughness: 0.28, metalness: 0.55, clearcoat: 0.6 }) } });
+      // sneakers (outfits.js, frame = the ankle): one on each foot in place of her own shoes, mirrored so the bow is outside
+      if (id === 'goldshoes') return (this.outfit[id] = { userData: { pair: this.legs.map(L => { const sh = buildItem(id); sh.position.x = L.s * 0.03; sh.scale.x = L.s; L.ankle.add(sh); return sh; }) } });
       const g = buildItem(id), [where, pos, rot, sc] = PLACE[id];
       if (where === 'face') { onHead(g, 0, 0.075, 0.14); this.head.add(g); }
       else { g.position.set(...pos); g.rotation.set(...rot); if (sc) g.scale.set(...sc); (where === 'head' ? this.head : this.torso).add(g); }
@@ -432,7 +433,7 @@ export class Tata {
       const want = !!on[id];
       if (!want && !this.outfit[id]) continue;
       const g = make(id);
-      if (id === 'goldshoes') { for (const sh of this.shoes) sh.material = want ? g.userData.gold : this.mats.teal; continue; }
+      if (id === 'goldshoes') { for (const L of this.legs) for (const c of L.ankle.children) c.visible = g.userData.pair.includes(c) ? want : !want; continue; }
       g.visible = want;
     }
     this.tuft.visible = !Object.keys(on).some(id => on[id] && HIDES_TUFT.has(id));
@@ -502,7 +503,7 @@ export class Tata {
       A.sh.rotation.x = lerp(shx, shxA, air);
       A.sh.rotation.z = lerp(shz, shzA, air);
       A.elbow.rotation.x = lerp(el, elA, air);
-      A.elbow.rotation.z = 0;
+      A.elbow.rotation.z = 0; A.elbow.rotation.y = 0;
     }
 
     // ---- body: a bouncy chibi run
@@ -528,7 +529,8 @@ export class Tata {
     if (this.cape?.visible) {
       const fly = moving ? 0.25 + 0.75 * s : air > 0.5 ? (rising > 0 ? 0.2 : 0.9) : 0.08;
       this.capeA = lerp(this.capeA || 0, fly, damp(6, dt));
-      this.cape.rotation.x = -this.capeA * 0.9 - (moving ? 0.06 * Math.sin(this.t * 14) * s : 0.02 * Math.sin(this.t * 2));
+      // + = the hem swings back (she faces +z): the old minus flew it forward, through her body
+      this.cape.rotation.x = this.capeA * 0.9 + (moving ? 0.06 * Math.sin(this.t * 14) * s : 0.02 * Math.sin(this.t * 2));
     }
     // tuft: a spring that lags the bounce
     const bobV = (bob - this.prevBob) / Math.max(dt, 1e-3); this.prevBob = bob;
@@ -550,10 +552,15 @@ export class Tata {
     if (st.mode === 'title') {
       const w = this.idleT % 4.2;
       if (w > 1.2 && w < 3.0) {
+        // a real hello (user 2026-11-24 "팔 흔드는게 각도가 어색한데"): the upper arm out at shoulder height, the forearm
+        // up, the open hand turned to the front and swinging side to side from the elbow — before, the whole arm went up
+        // and the forearm bent in, so the hand waved in front of her face
         const k = Math.min(1, (w - 1.2) / 0.25, (3.0 - w) / 0.25), A = this.arms[1];
-        A.sh.rotation.z = lerp(A.sh.rotation.z, 2.5, k); A.sh.rotation.x = lerp(A.sh.rotation.x, -0.2, k);
-        A.elbow.rotation.x = lerp(A.elbow.rotation.x, -0.3, k);
-        A.elbow.rotation.z = k * (0.4 + 0.4 * Math.sin(w * 11));
+        A.sh.rotation.z = lerp(A.sh.rotation.z, A.s * 1.7, k); A.sh.rotation.x = lerp(A.sh.rotation.x, -0.25, k);
+        A.elbow.rotation.x = lerp(A.elbow.rotation.x, 0, k);
+        A.elbow.rotation.z = k * A.s * (1.05 + 0.32 * Math.sin(w * 10));
+        A.elbow.rotation.y = -k * A.s * 1.2;   // the palm toward us — a twist about the forearm itself (order ZYX: twist,
+        A.elbow.rotation.order = 'ZYX';        // then the bend), so the forearm stays upright instead of swinging forward
       }
     }
     if (st.mode === 'cheer') {
