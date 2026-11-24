@@ -757,11 +757,15 @@ function oasis(parent, x, y, z) {
 // 실제 폭포처럼 바위와 질감들이 살았으면"): the water now FALLS (its streaks scroll down, updateWorld), spills over a rock lip
 // in a curve, and the cliff is a pile of craggy boulders with moss and grass on top instead of a brown box. Three shapes:
 // 0 one tall wide fall · 1 two tiers with a ledge pool half way · 2 twin narrow streams. A foaming plunge pool at the foot.
-const fallTex = () => once('fall2', () => { const t = canvasTex(128, 512, c => {
-  const gr = c.createLinearGradient(0, 0, 0, 512); gr.addColorStop(0, '#c4f1ff'); gr.addColorStop(0.5, '#7fd2f6'); gr.addColorStop(1, '#5ab8ec');
-  c.fillStyle = gr; c.fillRect(0, 0, 128, 512);
-  for (let i = 0; i < 70; i++) { c.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.5})`; c.fillRect(Math.random() * 128, Math.random() * 512, 1.5 + Math.random() * 4, 30 + Math.random() * 110); }
-  for (let i = 0; i < 24; i++) { c.fillStyle = `rgba(40,130,200,${0.15 + Math.random() * 0.2})`; c.fillRect(Math.random() * 128, Math.random() * 512, 2 + Math.random() * 4, 40 + Math.random() * 90); }
+// the water texture TILES seamlessly (one flat colour + streaks drawn twice so they wrap top↔bottom); the top-to-bottom
+// shading is in the sheet's vertex colours — a gradient inside a repeating texture made a hard band where the tiles met
+// (user 2026-11-24 "폭포가 중간에 끊긴 느낌")
+const fallTex = () => once('fall3', () => { const t = canvasTex(128, 512, c => {
+  c.fillStyle = '#8fd8f8'; c.fillRect(0, 0, 128, 512);
+  const streak = (col, n, w0, w1, l0, l1) => { for (let i = 0; i < n; i++) { const x = Math.random() * 128, y = Math.random() * 512, w = w0 + Math.random() * (w1 - w0), l = l0 + Math.random() * (l1 - l0);
+    c.fillStyle = col(); for (const dy of [0, -512]) c.fillRect(x, y + dy, w, l); } };
+  streak(() => `rgba(255,255,255,${0.3 + Math.random() * 0.5})`, 70, 1.5, 5.5, 30, 140);
+  streak(() => `rgba(40,130,200,${0.12 + Math.random() * 0.18})`, 24, 2, 6, 40, 130);
 }); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; });
 /** a craggy boulder: an icosahedron pushed about by a little noise, flat shaded (the look of the course's space rocks) */
 function boulderGeo(v) {
@@ -787,8 +791,11 @@ function fallSheet(g, x, y, z, w, h, out, speed) {
     p.setXYZ(i, p.getX(i) * (1 + 0.18 * t), p.getY(i) - h / 2, out * Math.sqrt(Math.min(1, t * 5)) + Math.sin(p.getX(i) * 3 + t * 6) * 0.05);
   }
   geo.computeVertexNormals();
+  const col = new Float32Array(p.count * 3), ca = new THREE.Color(0xeefbff), cb = new THREE.Color(0xb4e4fa), cc = new THREE.Color(0x86c8f0), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) { const t = Math.min(1, Math.max(0, -p.getY(i) / h)); (t < 0.15 ? c.copy(ca).lerp(cb, t / 0.15) : c.copy(cb).lerp(cc, (t - 0.15) / 0.85)); col.set([c.r, c.g, c.b], i * 3); }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   const map = fallTex().clone(); map.needsUpdate = true; map.repeat.set(1, h / 6);
-  const s = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+  const s = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map, vertexColors: true, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false }));
   s.position.set(x, y, z); s.name = 'falls'; s.userData.speed = speed; g.add(s);
   // the lip: the water bulging over the edge, lighter
   const lip = E3(w * 0.55, 0.16, 0.3, once('lipW', () => std(0xd6f6ff, 0.2, { transparent: true, opacity: 0.85 })), 14); lip.position.set(x, y + 0.02, z + 0.12); g.add(lip);
@@ -801,7 +808,7 @@ function foam(g, x, y, z, w) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(w * 0.55, w * 0.75, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.set(x, y + 0.04, z + 0.2); g.add(ring);
 }
-function waterfall(parent, x, y, z, v = 0) {
+export function waterfall(parent, x, y, z, v = 0) {
   const g = new THREE.Group(); g.position.set(x, y, z); if (SIDE) g.rotation.y = Math.PI / 2;
   const H = v === 1 ? 9 : rr(8, 9.5), W = v === 0 ? 2.6 : v === 1 ? 2 : 1.1;
   // the dark wet rock behind the water, then boulders piled up either side and along the top
@@ -815,22 +822,23 @@ function waterfall(parent, x, y, z, v = 0) {
   for (let xx = -3.4; xx <= 3.4; xx += rr(0.5, 0.8)) moss.add(xx, H - 0.45 + rr(-0.15, 0.2), rr(-0.4, 0.9), rr(0.6, 0.9), rr(0.3, 0.45), rr(0.6, 0.9), 0, 0, pick([0x5cbf46, 0x6bcb4c, 0x4fae3e, 0x7ad45a]));
   for (let i = 0; i < 6; i++) { const sx = rnd() < 0.5 ? -1 : 1; moss.add(sx * (W / 2 + rr(0.9, 1.8)), rr(0.8, H - 2.5), rr(0.9, 1.5), rr(0.4, 0.6), rr(0.12, 0.18), rr(0.35, 0.5), 0, 0, pick([0x5aa846, 0x6bb84e])); }
   moss.build(g);
-  // the water
-  const top = H - 1.0;
-  if (v === 0) { fallSheet(g, 0, top, 1.45, W, top + 0.6, 0.7, 1.35); foam(g, 0, -0.6, 2.1, W); }
+  // the water — it runs all the way down into a pool that sits ON the field (GL = the grass, 0.2 above the group's origin)
+  const top = H - 1.0, GL = 0.2, PZ = 2.6 + (v === 1 ? 0.8 : 0), foot = GL + 0.12;
+  if (v === 0) { fallSheet(g, 0, top, 1.45, W, top - foot, 0.7, 1.35); foam(g, 0, foot, 2.25, W); }
   else if (v === 1) {
     const mid = top * 0.5;
-    fallSheet(g, 0, top, 1.45, W * 0.8, top - mid, 0.55, 1.2);
-    boulder(g, 0, mid - 0.35, 2.0, 2.2, 0.55, 1.2, pick(ROCK_TINTS));                       // the ledge
+    fallSheet(g, 0, top, 1.45, W * 0.8, top - mid + 0.1, 0.55, 1.2);
+    boulder(g, 0, mid - 0.35, 1.05, 1.7, 0.55, 0.8, pick(ROCK_TINTS));                      // the ledge — BEHIND the lower fall (in front it cut it)
     const ledgePool = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24), gloss(0x4fc6ec, { roughness: 0.1 })); ledgePool.rotation.x = -Math.PI / 2; ledgePool.scale.y = 0.6; ledgePool.position.set(0, mid + 0.02, 2.2); g.add(ledgePool);
     foam(g, 0, mid - 0.06, 2.1, W * 0.7);
-    fallSheet(g, 0, mid, 2.75, W * 1.1, mid + 0.6, 0.5, 1.5); foam(g, 0, -0.6, 3.4, W * 1.2);
+    fallSheet(g, 0, mid + 0.05, 2.7, W * 1.1, mid + 0.05 - foot, 0.5, 1.5); foam(g, 0, foot, 3.35, W * 1.2);
   } else {
-    for (const sx of [-1, 1]) { fallSheet(g, sx * 0.8, top - (sx > 0 ? 0.7 : 0), 1.45, W, top + 0.6 - (sx > 0 ? 0.7 : 0), 0.6, sx > 0 ? 1.25 : 1.45); foam(g, sx * 0.8, -0.6, 2.1, W * 1.4); }
+    for (const sx of [-1, 1]) { const tp = top - (sx > 0 ? 0.7 : 0); fallSheet(g, sx * 0.8, tp, 1.45, W, tp - foot, 0.6, sx > 0 ? 1.25 : 1.45); foam(g, sx * 0.8, foot, 2.2, W * 1.4); }
   }
-  // the plunge pool and stones round it
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(3.4, 40), gloss(0x3ec2ea, { roughness: 0.08 })); pool.rotation.x = -Math.PI / 2; pool.scale.y = 0.55; pool.position.set(0, -0.62, 2.6 + (v === 1 ? 0.8 : 0)); g.add(pool);
-  for (let i = 0; i < 9; i++) { const a = Math.PI * (0.05 + 0.9 * i / 8); boulder(g, Math.cos(a) * 3.6, -0.55, 2.6 + (v === 1 ? 0.8 : 0) + Math.sin(a) * 2.0, rr(0.35, 0.6), rr(0.25, 0.4), rr(0.35, 0.55), pick(ROCK_TINTS)); }
+  // the plunge pool: a shallow basin whose surface is just above the grass (its body goes down into the ground, so it
+  // never floats where the field dips), a rim of stones
+  const pool = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 0.6, 40), gloss(0x3ec2ea, { roughness: 0.08 })); pool.scale.z = 0.55; pool.position.set(0, GL + 0.1 - 0.3, PZ); g.add(pool);
+  for (let i = 0; i < 11; i++) { const a = Math.PI * (-0.08 + 1.16 * i / 10); boulder(g, Math.cos(a) * 3.5, GL + 0.05, PZ + Math.sin(a) * 1.95, rr(0.35, 0.6), rr(0.25, 0.4), rr(0.35, 0.55), pick(ROCK_TINTS)); }
   parent.add(shade(g, true, true));
 }
 
