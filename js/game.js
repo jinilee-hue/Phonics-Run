@@ -180,6 +180,8 @@ function popText(html, cls, x, y, z = 0) {
   setTimeout(() => el.remove(), 1400);
 }
 const mWord = w => `<b>${w[0]}</b>${w.slice(1)}`;
+// the coin beside a floating −2 / +3, so it reads as coins (user 2026-11-24 "잘못된 카드 선택시 -2는 무슨 점수야?")
+const COIN_I = '<i class="pop-coin"></i>';
 
 // ---------------------------------------------------------------- level flow
 function setScreen(s) { G.screen = s; app.dataset.screen = s; }
@@ -429,7 +431,7 @@ function touchItems() {
         const lostC = Math.min(TRAP_COST, G.coins); G.coins -= lostC; drawCoins(false, lostC > 0);
         A.sfx.bad(); A.seq(['w:' + it.word, 0.1, 't:oops']);
         popText(it.word, 'bad', it.x, cy + 1.1, it.z);
-        if (lostC) popText(`−${lostC}`, 'minus', P.x, P.y + 2.6, P.z);
+        if (lostC) popText(`−${lostC}${COIN_I}`, 'minus', P.x, P.y + 2.6, P.z);
         P.vz = 6.5; P.vx = (P.x < it.x ? -1 : 1) * 2; P.vy = 8.5; P.grounded = false; P.ground = null;   // bounced back toward the camera
         P.inv = 1.4; P.lock = 0.35; P.hurt = 0.5; runner.flash = 1.4;
         if (G.hearts <= 0) gameOver();
@@ -568,7 +570,7 @@ async function sayTurn() {
       G.said.push(w); drawSlots(); markDot(i, 'ok');
       $('sayMic').className = 'smic ok'; A.sfx.good();
       G.coins += SAY_REWARD; drawCoins(true);
-      popText(`+${SAY_REWARD}`, 'plus', P.x, P.y + 2.8);
+      popText(`+${SAY_REWARD}${COIN_I}`, 'plus', P.x, P.y + 2.8);
       E.burst(new THREE.Vector3(G.lv.gate.x, G.lv.gate.top + 2.2, -1.2), 0xfff3a0, 0.8);
       G.lv.gate.glow = Math.min(0.95, 0.4 + 0.55 * (G.said.length / G.got.length));
       await A.say('t:' + pick(['great1', 'great2', 'great3'])); if (!alive()) return;
