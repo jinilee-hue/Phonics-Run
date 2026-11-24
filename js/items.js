@@ -56,9 +56,12 @@ const coinFace = canvasTex(128, 128, g => {
   gr.addColorStop(0, '#fff3a8'); gr.addColorStop(0.55, '#ffd23f'); gr.addColorStop(1, '#f2a516');
   g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
   g.strokeStyle = '#e48f0c'; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 50, 0, Math.PI * 2); g.stroke();
-  g.font = '800 84px "Baloo 2", "Arial Rounded MT Bold", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillStyle = '#e48f0c'; g.fillText('m', 64, 56);
-  g.fillStyle = '#fff7c8'; g.fillText('m', 62, 53);
+  // the m's INK centred on the face (user 2026-11-24 "동전의 m자가 너무 위로 치우쳤어"): 'middle' centres the em box, not the
+  // x-height letter, and the old fixed nudge put it high — measure the glyph and centre its bounding box
+  g.font = '800 84px "Baloo 2", "Arial Rounded MT Bold", sans-serif'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  const mm = g.measureText('m'), mx = 64 - (mm.actualBoundingBoxRight - mm.actualBoundingBoxLeft) / 2, my = 64 + (mm.actualBoundingBoxAscent - mm.actualBoundingBoxDescent) / 2;
+  g.fillStyle = '#e48f0c'; g.fillText('m', mx + 1.5, my + 2);
+  g.fillStyle = '#fff7c8'; g.fillText('m', mx - 0.5, my - 0.5);
 });
 coinFace.center.set(0.5, 0.5); coinFace.rotation = Math.PI / 2;   // the cap UV of a cylinder turned to face +z lies on its side
 const coinMats = [

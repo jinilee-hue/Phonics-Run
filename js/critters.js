@@ -152,8 +152,17 @@ export function penguin(scarf = 0xff4f6d) {
 }
 export function polarBear() {
   const g = new THREE.Group(), fur = clay(0xfbf8f1, 0.8), b = new THREE.Group(); g.add(b);
-  b.add(ball(0.55, 0.5, 0.5, fur, 0, 0.5, 0));
-  for (const sx of [-1, 1]) { b.add(ball(0.14, 0.22, 0.15, fur, sx * 0.22, 0.2, 0.36)); b.add(ball(0.18, 0.12, 0.24, fur, sx * 0.38, 0.1, 0.24)); b.add(ball(0.08, 0.05, 0.03, clay(0x5a5050), sx * 0.38, 0.1, 0.48, 10)); }
+  // sitting like a teddy (user 2026-11-24 "곰돌이도 팔다리가 어색해" — little stubs splayed flat at the bottom): a pear-shaped
+  // body, the hind legs reaching forward with dark soles (and toe pads) facing out, the arms hanging down the front of the
+  // body from the shoulders with their paws resting on the legs
+  b.add(ball(0.52, 0.52, 0.47, fur, 0, 0.52, 0));
+  const pad = clay(0x6b5c5c, 0.6);
+  for (const sx of [-1, 1]) {
+    b.add(ball(0.17, 0.15, 0.27, fur, sx * 0.26, 0.15, 0.24));                                 // hind leg, forward
+    b.add(ball(0.1, 0.11, 0.035, pad, sx * 0.26, 0.16, 0.5, 12));                              // sole
+    for (const tx of [-0.07, 0, 0.07]) b.add(ball(0.03, 0.03, 0.02, pad, sx * 0.26 + tx, 0.29, 0.47, 8));   // toe pads
+    b.add(cap(0.125, 0.22, fur, sx * 0.34, 0.5, 0.22, 0.35, sx * 0.28));                     // arm, shoulder → paw (chunky)
+  }
   const h = new THREE.Group(); h.position.set(0, 1.12, 0.12); b.add(h);
   h.add(ball(0.36, 0.32, 0.32, fur));
   for (const sx of [-1, 1]) { h.add(ball(0.1, 0.1, 0.07, fur, sx * 0.24, 0.24, -0.03)); h.add(ball(0.05, 0.05, 0.03, clay(0xffc4d2), sx * 0.24, 0.24, 0.02, 10)); }

@@ -89,9 +89,10 @@ function snowBlock(parent, w, len, h) {
   for (const sz of [-1, 1]) for (let x = -w / 2 + 0.3; x < w / 2; x += rr(0.36, 0.5)) drifts.add(x, -0.42 + rr(-0.04, 0.03), sz * (len / 2 - 0.05), rr(0.75, 0.9), rr(0.32, 0.38), rr(0.5, 0.62));
   drifts.build(g);
   const ics = inst(coneG(), icicleM());
-  const ic = (x, z) => { if (rnd() < 0.3) return; const L = rr(0.5, 1.6), r = rr(0.09, 0.18); ics.add(x, -0.8 - L / 2, z, r, L, r, 0, Math.PI, rnd() < 0.45 ? pick(RAINBOW_ICE) : 0xd8f0ff); };
-  for (let z = -len / 2 + 0.4; z < len / 2 - 0.2; z += rr(0.35, 0.7)) for (const sx of [-1, 1]) ic(sx * (w / 2 + 0.12), z);
-  for (const sz of [-1, 1]) for (let x = -w / 2 + 0.4; x < w / 2 - 0.2; x += rr(0.35, 0.7)) ic(x, sz * (len / 2 + 0.12));
+  // the icicle's root sits inside the drift above it (at -0.8 it showed a sliver of gap under the drift's curve)
+  const ic = (x, z) => { if (rnd() < 0.3) return; const L = rr(0.62, 1.72), r = rr(0.09, 0.18); ics.add(x, -0.68 - L / 2, z, r, L, r, 0, Math.PI, rnd() < 0.45 ? pick(RAINBOW_ICE) : 0xd8f0ff); };
+  for (let z = -len / 2 + 0.4; z < len / 2 - 0.2; z += rr(0.35, 0.7)) for (const sx of [-1, 1]) ic(sx * (w / 2 + 0.08), z);
+  for (const sz of [-1, 1]) for (let x = -w / 2 + 0.4; x < w / 2 - 0.2; x += rr(0.35, 0.7)) ic(x, sz * (len / 2 + 0.08));
   ics.build(g);
   parent.add(g);
   return g;
@@ -152,9 +153,11 @@ function styledBlock(parent, w, len, h, theme) {
     const one = (x, z) => {
       if (H.kind === 'drip') { if (rnd() < 0.35) return; const r = rr(0.14, 0.22), T = rr(0.15, 0.75) + 2 * r; hs.add(x, -0.5 - T / 2, z, r * 2, T / 2, r * 2); }
       else if (H.kind === 'vine') { if (rnd() < 0.6) return; const L = rr(0.6, 2.2), r = rr(0.035, 0.06); hs.add(x, -0.6 - L / 2, z, r * 2, L / 2, r * 2, 0, rr(-0.08, 0.08), pick(H.tints)); }
-      else { if (rnd() < 0.65) return; const L = rr(0.5, 1.4), r = rr(0.1, 0.2); hs.add(x, -0.9 - L / 2, z, r, L, r, rr(0, 1), Math.PI + rr(-0.2, 0.2), pick(H.tints)); }
+      // crystals: the base sits up inside the lip's rock lumps (it hung 0.1–0.15 below them, a gap — user 2026-11-24
+      // "고드름이나 운석같은게 정작 위에 면이랑 떨어져 있어서"), the same length showing below
+      else { if (rnd() < 0.65) return; const L = rr(0.78, 1.68), r = rr(0.1, 0.2); hs.add(x, -0.62 - L / 2, z, r, L, r, rr(0, 1), Math.PI + rr(-0.2, 0.2), pick(H.tints)); }
     };
-    const out = H.kind === 'drip' ? 0.02 : 0.12;
+    const out = H.kind === 'drip' ? 0.02 : H.kind === 'crystal' ? 0.04 : 0.12;
     for (let z = -len / 2 + 0.4; z < len / 2 - 0.2; z += rr(0.3, 0.6)) for (const sx of [-1, 1]) one(sx * (w / 2 + out), z);
     for (const sz of [-1, 1]) for (let x = -w / 2 + 0.4; x < w / 2 - 0.2; x += rr(0.3, 0.6)) one(x, sz * (len / 2 + out));
     hs.build(g);
@@ -288,7 +291,8 @@ function prop(g, x, z, theme, side) {
     else if (k < 0.82) candyCane(g, x, z, rr(1, 1.5), side);
     else E.bush(g, x, z, rr(1, 1.3));
   } else if (theme === 'snow') {
-    if (k < 0.45) pine(g, x, z, rr(0.9, 1.4));
+    if (k < 0.28) pine(g, x, z, rr(0.9, 1.4));
+    else if (k < 0.48) roundTree(g, x, z, rr(0.85, 1.25));
     else if (k < 0.65) snowman(g, x, z, rr(0.8, 1.05), side);
     else if (k < 0.8) crystal(g, x, z, 0x9fe6ff);
     else snowBush(g, x, z, rr(0.8, 1.1));
@@ -386,7 +390,28 @@ function pineGeo(v) {
   });
 }
 export function pine(g, x, z, s) {
-  const t = new THREE.Mesh(pineGeo((rnd() * 4) | 0), pineM()); t.position.set(x, 0, z); t.scale.setScalar(s); t.rotation.y = rr(0, 6);
+  // not all alike (user 2026-11-24 "나무 모양도 너무 다 일관되잖아"): some slim and tall, some short and full
+  const t = new THREE.Mesh(pineGeo((rnd() * 4) | 0), pineM()), wd = rr(0.78, 1.12); t.position.set(x, 0, z); t.scale.set(s * wd, s * rr(0.88, 1.32), s * wd); t.rotation.y = rr(0, 6);
+  t.castShadow = t.receiveShadow = true; g.add(t); return t;
+}
+/** a round snowy tree (user 2026-11-24 "둥근 나무도 있을거고"): a trunk under a cloud of round green balls, each with a
+ *  pillow of snow on top. Three shapes; greens a little lighter than the pines' */
+function roundTreeGeo(v) {
+  return once('roundTree' + v, () => {
+    const lump = sphG(14), parts = [], green = [0x3a9a64, 0x4aa86c, 0x34905e][v], white = 0xf8fbff;
+    parts.push([new THREE.CylinderGeometry(0.11, 0.16, 1.1, 8), 0x7a4e2c, MX(0, 0.55, 0)]);
+    const balls = [[[0, 1.55, 0, 0.72], [0.48, 1.25, 0.12, 0.48], [-0.46, 1.3, -0.08, 0.5], [0.08, 2.05, 0.02, 0.46]],
+      [[0, 1.6, 0, 0.8], [0.1, 2.2, 0.05, 0.5]],
+      [[0, 1.45, 0, 0.6], [0.4, 1.85, 0.1, 0.5], [-0.38, 1.9, -0.05, 0.48], [0, 2.3, 0, 0.42]]][v];
+    for (const [bx, by, bz, r] of balls) {
+      parts.push([lump, green, MX(bx, by, bz, r, r * 0.92, r)]);
+      parts.push([lump, white, MX(bx, by + r * 0.42, bz, r * 0.9, r * 0.52, r * 0.9)]);
+    }
+    return mergeColored(parts);
+  });
+}
+function roundTree(g, x, z, s) {
+  const t = new THREE.Mesh(roundTreeGeo((rnd() * 3) | 0), pineM()); t.position.set(x, 0, z); t.scale.set(s, s * rr(0.9, 1.15), s); t.rotation.y = rr(0, 6);
   t.castShadow = t.receiveShadow = true; g.add(t); return t;
 }
 /** a snow-covered shrub (round green clumps under thick snow) */
@@ -528,17 +553,37 @@ function planet(parent, x, y, z, r, a, b, ring) {
   const p = new THREE.Group(); p.position.set(x, y, z); p.rotation.z = rr(-0.4, 0.4);
   p.add(new THREE.Mesh(new THREE.SphereGeometry(r, 40, 24), new THREE.MeshStandardMaterial({ map: planetTex(a, b), roughness: 0.6, emissive: 0x2a1a4a, emissiveIntensity: 0.4, fog: false })));
   if (ring) { const rg = new THREE.Mesh(new THREE.RingGeometry(r * 1.35, r * 2.0, 64), new THREE.MeshStandardMaterial({ color: ring, side: THREE.DoubleSide, transparent: true, opacity: 0.8, roughness: 0.5, fog: false })); rg.rotation.x = Math.PI / 2.3; p.add(rg); }
+  p.name = 'planet'; p.userData.spin = rr(0.04, 0.09) * (rnd() < 0.5 ? -1 : 1); p.userData.ph = rr(0, 6); p.userData.y0 = y;   // turns in updateWorld
   parent.add(p); return p;
 }
-function galaxy(parent, x, y, z, s, hue) {
-  const t = once('gal' + hue, () => canvasTex(256, 256, g => {
-    g.translate(128, 128);
-    for (let i = 0; i < 1600; i++) { const arm = i % 2, t = Math.random(), a = t * 7 + arm * Math.PI + (Math.random() - 0.5) * 0.6, r = t * 118;
-      g.fillStyle = `hsla(${hue + Math.random() * 40},90%,${70 + Math.random() * 25}%,${0.5 * (1 - t) + 0.1})`; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r * 0.55, Math.random() * 2 + 0.5, 0, Math.PI * 2); g.fill(); }
-    const gr = g.createRadialGradient(0, 0, 0, 0, 0, 40); gr.addColorStop(0, 'rgba(255,250,230,1)'); gr.addColorStop(1, 'rgba(255,220,240,0)'); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 40, 0, Math.PI * 2); g.fill();
+/** an aurora ribbon in the space sky (user 2026-11-24: "오로라처럼 된건 안어울려! … 그라데이션으로 오로라 띠"): the dotted
+ *  spiral galaxies read as stray glitter, so the sky gets a few soft curtains instead — one smooth band that runs from one
+ *  hue into the next (teal → violet → pink by default), fading out at its ends and at its top and bottom, with faint
+ *  upright rays like a real aurora, gently waving along its length. Additive, no fog, never in front of the course. */
+function aurora(parent, x, y, z, w, h, hue, turn) {
+  const t = once('aur' + hue, () => canvasTex(512, 128, g => {
+    const hg = g.createLinearGradient(0, 0, 512, 0);
+    hg.addColorStop(0, `hsla(${hue},85%,62%,0)`); hg.addColorStop(0.18, `hsla(${hue},85%,62%,1)`);
+    hg.addColorStop(0.5, `hsla(${hue + 70},85%,66%,1)`); hg.addColorStop(0.82, `hsla(${hue + 130},85%,70%,1)`); hg.addColorStop(1, `hsla(${hue + 130},85%,70%,0)`);
+    g.fillStyle = hg; g.fillRect(0, 0, 512, 128);
+    for (let i = 0; i < 46; i++) {                                     // faint upright rays
+      const rx = Math.random() * 512, rw = 2 + Math.random() * 7, rg = g.createLinearGradient(0, 0, 0, 128);
+      rg.addColorStop(0, 'rgba(255,255,255,0)'); rg.addColorStop(0.6, `rgba(255,255,255,${0.12 + Math.random() * 0.16})`); rg.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = rg; g.fillRect(rx, 0, rw, 128);
+    }
+    const vg = g.createLinearGradient(0, 0, 0, 128);                    // soft top, brighter low edge, soft bottom
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(0.45, 'rgba(0,0,0,.45)'); vg.addColorStop(0.8, 'rgba(0,0,0,.95)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalCompositeOperation = 'destination-in'; g.fillStyle = vg; g.fillRect(0, 0, 512, 128);
   }));
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-  sp.scale.set(s, s, 1); sp.position.set(x, y, z); parent.add(sp);
+  const geo = new THREE.PlaneGeometry(w, h, 64, 1), p = geo.getAttribute('position'), ph = rr(0, 6);
+  for (let i = 0; i < p.count; i++) {                                 // a curtain waving along its length
+    const u = p.getX(i) / w;
+    p.setZ(i, Math.sin(u * 7 + ph) * h * 0.35); p.setY(i, p.getY(i) + Math.sin(u * 4.3 + ph * 0.7) * h * 0.22);
+  }
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending, fog: false, toneMapped: false }));
+  m.position.set(x, y, z); m.rotation.y = turn; m.rotation.z = rr(-0.08, 0.08); m.renderOrder = -1;
+  m.name = 'aurora'; m.userData.ph = ph; m.userData.y0 = y; parent.add(m);   // breathes in updateWorld
 }
 
 // ---------------------------------------------------------------- big things far beside the course
@@ -654,7 +699,7 @@ export function backdrop(parent, theme, dEnd) {
   } else if (theme === 'snow') {
     for (const z of zs) for (const side of SIDES()) {
       const x = side * rr(12, 22); if (busy(x, z)) continue; const g = onField(parent, x, z), k = rnd();
-      if (k < 0.3) cabin(g, 0, 0, rr(1.1, 1.4)); else if (k < 0.75) { pine(g, 0, 0, rr(1.8, 2.6)); pine(g, rr(-2.5, 2.5), rr(-2, 2), rr(1.4, 2)); } else snowman(g, 0, 0, rr(1.4, 1.8), side);
+      if (k < 0.3) cabin(g, 0, 0, rr(1.1, 1.4)); else if (k < 0.75) { const a = rnd() < 0.5 ? pine : roundTree, b = rnd() < 0.5 ? pine : roundTree; a(g, 0, 0, rr(1.8, 2.6)); b(g, rr(-2.5, 2.5), rr(-2, 2), rr(1.4, 2)); } else snowman(g, 0, 0, rr(1.4, 1.8), side);
     }
     for (let d = 20; d < dEnd + 80; d += rr(26, 40)) for (const side of [-1, 1]) mountain(parent, far(side * rr(42, 65)), -d - 30, rr(14, 24));
   } else if (theme === 'desert') {
@@ -668,8 +713,9 @@ export function backdrop(parent, theme, dEnd) {
     const cols = [['#e8a25e', '#c4743c', 0xf2d6a8], ['#8f7cff', '#6a54d8', null], ['#ff8fbf', '#d9609a', 0xffc8e0], ['#7fd0ff', '#4a9be0', null], ['#ffd36b', '#e8a02a', 0xfff0c0]];
     let k = 0;
     for (let d = 10; d < dEnd + 40; d += rr(18, 28)) { const [a, b, ring] = cols[k++ % cols.length]; planet(parent, far((k % 2 ? -1 : 1) * rr(24, 40)), rr(6, 20), -d, rr(3, 7), a, b, ring); }
-    for (let d = 20; d < dEnd + 60; d += rr(30, 45)) galaxy(parent, SIDE ? rr(-70, -40) : rr(-50, 50), rr(18, 40), SIDE ? -d : -d - 60, rr(30, 50), (d * 7) % 360);
-    for (const z of zs) for (const side of SIDES()) { const x = side * rr(10, 24); if (busy(x, z)) continue; const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.8, 2.2), 0), std(0x5e508a, 0.9, { flatShading: true })); r.position.set(x, rr(-3, 8), z); r.rotation.set(rr(0, 3), rr(0, 3), 0); r.userData.spin = rr(-0.3, 0.3); r.name = 'asteroid'; parent.add(r); }
+    const HUES = [170, 290, 200, 320];                                 // teal, violet, sky, magenta starts
+    for (let d = 30, k = 0; d < dEnd + 80; d += rr(55, 80), k++) aurora(parent, SIDE ? rr(-85, -65) : rr(-25, 25), rr(24, 36), SIDE ? -d : -d - 90, rr(80, 120), rr(16, 22), HUES[k % HUES.length], SIDE ? Math.PI / 2 : rr(-0.25, 0.25));
+    for (const z of zs) for (const side of SIDES()) { const x = side * rr(10, 24); if (busy(x, z)) continue; const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.8, 2.2), 0), std(0x5e508a, 0.9, { flatShading: true })); r.position.set(x, rr(-3, 8), z); r.rotation.set(rr(0, 3), rr(0, 3), 0); r.userData.spin = rr(-0.3, 0.3); r.userData.ph = rr(0, 6); r.userData.y0 = r.position.y; r.name = 'asteroid'; parent.add(r); }
   }
 }
 function mountainGeo(v) {
@@ -745,6 +791,7 @@ function clouds(parent, dEnd, sea) {
   else for (let d = -20; d < dEnd + 80; d += rr(14, 22)) for (const side of [-1, 1]) cloud(far(side * rr(24, 60)), rr(14, 32), -d - rr(0, 30), rr(4, 8));
   const im = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshStandardMaterial({ color: E.TH.cloud[0], roughness: 1, emissive: E.TH.cloud[1], emissiveIntensity: E.TH.cloud[2] }), puffs.length);
   puffs.forEach((m, i) => im.setMatrixAt(i, m)); im.instanceMatrix.needsUpdate = true; im.frustumCulled = false;
+  im.name = 'clouds'; im.userData.ph = rr(0, 6); im.userData.sea = sea;   // drifts in updateWorld
   parent.add(im);
 }
 
@@ -834,12 +881,18 @@ export function updateWorld(dt, T, root, camPos) {
     snowfall.position.set(camPos.x, camPos.y - 5, camPos.z - 12);
   }
   if (root && !root.userData.anim) {                           // (collected once per level, not searched every frame)
-    const a = root.userData.anim = []; root.traverse(o => { if (o.name === 'falls' || o.name === 'asteroid' || o.name === 'smoke' || o.userData.cr) a.push(o); });
+    const MOVE = new Set(['falls', 'asteroid', 'smoke', 'clouds', 'planet', 'aurora']);
+    const a = root.userData.anim = []; root.traverse(o => { if (MOVE.has(o.name) || o.userData.cr) a.push(o); });
   }
   for (const o of root?.userData.anim || []) {
     if (o.userData.cr) C.updateCritter(o, T);
     else if (o.name === 'falls') o.material.map.offset.y -= dt * 1.2;
-    else if (o.name === 'asteroid') { o.rotation.x += dt * o.userData.spin; o.rotation.y += dt * o.userData.spin * 0.7; }
+    // a little life in every sky (user 2026-11-24 "배경마다 구름이나 운석이나 이런것들 모션 조금씩 줘서 자연스럽게"):
+    // asteroids tumble and float up and down · cloud banks drift sideways and breathe · planets turn · the aurora sways and glows
+    else if (o.name === 'asteroid') { o.rotation.x += dt * o.userData.spin; o.rotation.y += dt * o.userData.spin * 0.7; o.position.y = o.userData.y0 + Math.sin(T * 0.45 + o.userData.ph) * 0.5; }
+    else if (o.name === 'clouds') { const s = o.userData.sea ? 1.6 : 3.2; o.position.x = Math.sin(T * 0.05 + o.userData.ph) * s; o.position.y = Math.sin(T * 0.13 + o.userData.ph) * (o.userData.sea ? 0.4 : 0.6); }
+    else if (o.name === 'planet') { o.children[0].rotation.y += dt * o.userData.spin; o.position.y = o.userData.y0 + Math.sin(T * 0.2 + o.userData.ph) * 0.6; }
+    else if (o.name === 'aurora') { o.material.opacity = 0.6 + 0.16 * Math.sin(T * 0.6 + o.userData.ph); o.position.y = o.userData.y0 + Math.sin(T * 0.18 + o.userData.ph) * 1.2; o.scale.y = 1 + 0.08 * Math.sin(T * 0.4 + o.userData.ph * 1.3); }
     else { for (const p of o.children) { p.position.y = (p.position.y + dt * 0.4) % 1.2; p.material.opacity = 0.8 * (1 - p.position.y / 1.2); } }
   }
 }

@@ -6,7 +6,8 @@
 // from below you pass through) · ['lift', dc, top, axis, amp, period, w, len] moving platform (axis x | y | z) ·
 // ['bounce', d, x, groundTop] mushroom / jelly drum · ['end', d0, d1, top] the gate's ground (gate near its far end).
 // Items: ['c', word, d, x] card standing on whatever is below (or ['c', word, d, x, y]) · ['row', d0, d1, x, y, n] coins ·
-// ['arc', d0, d1, x, y0, rise, n] coins on an arc.
+// ['arc', d0, d1, x, y0, rise, n] coins on an arc · ['ring', d, x, yc, ry, rz, n] coins round an upright oval — its top
+// needs a jump (user 2026-11-24 "동전들도 위아래 타원형으로 되어있어서 점프를 해야 먹을수 있게").
 import * as THREE from 'three';
 import * as E from './env.js';
 import * as W from './worlds.js';
@@ -28,12 +29,12 @@ export const LEVELS = [
       ['g', 80.5, 94, 1.2], ['end', 97, 120, 1.2],
     ],
     items: [
-      ['row', 8, 12, 0, 1.0, 5], ['c', 'moon', 16, L_], ['c', 'map', 26, R_],
+      ['row', 8, 12, 0, 1.0, 5], ['c', 'moon', 16, L_], ['c', 'map', 26, R_], ['ring', 30.5, 0, 2.2, 1.2, 1.4, 8],
       ['arc', 34.5, 37, 0, 1.2, 2.2, 4],
-      ['c', 'milk', 46, 0], ['row', 50, 54, R_, 1.0, 4],
+      ['c', 'milk', 46, 0], ['ring', 52, R_, 2.2, 1.2, 1.4, 8],
       ['arc', 54.5, 57.5, L_, 1.4, 1.8, 3], ['c', 'mop', 64, L_],
       ['arc', 70.5, 73, 0, 2.6, 1.6, 3], ['arc', 77.3, 80, 0, 3.2, 1.6, 3],
-      ['c', 'egg', 87, 0], ['row', 84, 90, R_, 2.2, 4],
+      ['c', 'egg', 87, 0], ['arc', 84, 90, R_, 2.2, 2.0, 5],
       ['arc', 94.5, 96.5, 0, 2.4, 1.6, 3],
     ],
   },
@@ -48,9 +49,9 @@ export const LEVELS = [
       ['arc', 26.5, 29, 0, 1.2, 2.2, 4],
       ['c', 'meat', 36, 0], ['arc', 44, 49, 0, 2.4, 4.6, 4],
       ['c', 'mat', 54, R_], ['row', 55, 59, L_, 5.6, 3],
-      ['c', 'ten', 70, 0], ['row', 66, 74, R_, 2.6, 4],
+      ['c', 'ten', 70, 0], ['arc', 66, 74, R_, 2.6, 2.2, 5],
       ['arc', 76.5, 79, 0, 2.6, 1.6, 3], ['arc', 82, 84.5, 0, 2.6, 1.6, 3],
-      ['row', 88, 95, 0, 2.6, 6],
+      ['ring', 91.5, 0, 3.8, 1.2, 1.5, 8],
     ],
   },
   {
@@ -65,8 +66,8 @@ export const LEVELS = [
       ['arc', 24.5, 27.5, 0, 1.2, 1.8, 3], ['arc', 33.3, 36.3, 0, 1.9, 1.8, 3],
       ['c', 'mouse', 42, R_], ['c', 'fox', 47, 0],
       ['arc', 52.5, 62.5, 0, 2.4, 2.6, 6],
-      ['c', 'mug', 70, L_], ['row', 72, 76, R_, 2.6, 4],
-      ['c', 'mail', 101, 0], ['row', 97, 106, L_, 3.4, 5],
+      ['c', 'mug', 70, L_], ['ring', 74, R_, 2.8, 1.2, 1.4, 8],
+      ['c', 'mail', 101, 0], ['arc', 97, 106, L_, 3.4, 2.2, 6],
     ],
   },
   {
@@ -81,10 +82,10 @@ export const LEVELS = [
       ['arc', 26.5, 29.5, 0, 1.4, 2, 3],
       ['c', 'monkey', 36, L_], ['c', 'kite', 40, R_],
       ['arc', 44.5, 53, 0, 2.2, 2.2, 5],
-      ['c', 'mushroom', 61, 0], ['row', 63, 67, R_, 2.6, 4],
+      ['c', 'mushroom', 61, 0], ['ring', 65, R_, 2.8, 1.2, 1.4, 8],
       ['arc', 68.5, 71, 0, 3, 1.6, 3], ['arc', 75.3, 78, 0, 4, 1.6, 3],
-      ['c', 'mirror', 92, R_], ['row', 88, 96, L_, 3.4, 5],
-      ['row', 109, 116, 0, 3.4, 6],
+      ['c', 'mirror', 92, R_], ['arc', 88, 96, L_, 3.4, 2.2, 5],
+      ['ring', 112.5, 0, 4.6, 1.2, 1.5, 8],
     ],
   },
   {
@@ -97,10 +98,10 @@ export const LEVELS = [
     items: [
       ['row', 8, 12, 0, 1.0, 4], ['c', 'match', 15, R_], ['c', 'gate', 19, L_],
       ['arc', 22.5, 25.5, L_, 1.2, 2.4, 3], ['arc', 31.3, 34, 0, 2, 2, 3],
-      ['c', 'mice', 47, L_], ['c', 'doll', 51, R_],
+      ['c', 'mice', 47, L_], ['c', 'doll', 51, R_], ['ring', 49, 0, 3.6, 1.4, 1.6, 8],
       ['arc', 56.5, 67.5, 0, 2.6, 3.2, 6],
-      ['c', 'mouth', 76, 0], ['row', 70, 80, R_, 3.2, 5],
-      ['row', 95, 104, L_, 3.6, 5],
+      ['c', 'mouth', 76, 0], ['arc', 70, 80, R_, 3.2, 3.0, 6],
+      ['ring', 99.5, L_, 4.6, 1.6, 1.8, 10],
     ],
   },
 ];
@@ -186,6 +187,9 @@ export function buildLevel(L, side = false) {
     } else if (it[0] === 'arc') {
       const [, d0, d1, x0, y0, rise, n] = it, x = X(x0);
       for (let i = 0; i < n; i++) { const t = n > 1 ? i / (n - 1) : 0.5; items.push(makeCoin(root, x, y0 + rise * 4 * t * (1 - t), -(d0 + (d1 - d0) * t))); }
+    } else if (it[0] === 'ring') {
+      const [, d, x0, yc, ry, rz, n] = it, x = X(x0);
+      for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; items.push(makeCoin(root, x, yc + ry * Math.sin(a), -(d + rz * Math.cos(a)))); }
     }
   }
 

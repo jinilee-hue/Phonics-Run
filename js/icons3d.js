@@ -100,8 +100,10 @@ function coin() {
     const gr = x.createRadialGradient(108, 96, 12, 128, 128, 128); gr.addColorStop(0, '#fff3a8'); gr.addColorStop(0.55, '#ffd23f'); gr.addColorStop(1, '#f2a516');
     x.fillStyle = gr; x.fillRect(0, 0, 256, 256);
     x.strokeStyle = '#e48f0c'; x.lineWidth = 14; x.beginPath(); x.arc(128, 128, 100, 0, Math.PI * 2); x.stroke();
-    x.font = '800 168px "Baloo 2", "Arial Rounded MT Bold", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillStyle = '#e48f0c'; x.fillText('m', 132, 116); x.fillStyle = '#fff7c8'; x.fillText('m', 126, 108);
+    // the m centred by its own ink, like the coins in the course (items.js)
+    x.font = '800 168px "Baloo 2", "Arial Rounded MT Bold", sans-serif'; x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+    const mm = x.measureText('m'), mx = 128 - (mm.actualBoundingBoxRight - mm.actualBoundingBoxLeft) / 2, my = 128 + (mm.actualBoundingBoxAscent - mm.actualBoundingBoxDescent) / 2;
+    x.fillStyle = '#e48f0c'; x.fillText('m', mx + 3, my + 4); x.fillStyle = '#fff7c8'; x.fillText('m', mx - 1, my - 1);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.center.set(0.5, 0.5); t.rotation = Math.PI / 2; return t;
   })();
   const side = new THREE.MeshPhysicalMaterial({ color: 0xf5b21e, roughness: 0.3, metalness: 0.35, clearcoat: 0.6, emissive: 0x5a3000, emissiveIntensity: 0.25 });
