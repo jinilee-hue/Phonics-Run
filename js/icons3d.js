@@ -78,17 +78,20 @@ function heart(on) {
   return g;
 }
 function crackedHeart() {
-  // two halves split along a zigzag crack, pushed apart and tilted
-  const zig = [[0, 0.62], [-0.12, 0.36], [0.1, 0.1], [-0.1, -0.18], [0.07, -0.5], [0, -1.0]];
+  // two halves split along a zigzag crack, tilted apart about the bottom tip (user 2026-11-24 "깨진 하트 끝이 어긋나있어": each
+  // half ended in a sharp 50° point whose bevel stuck out as a spike, and the two spikes crossed at the bottom — so each half's
+  // point is trimmed to a short flat (no spike) so the two flats meet as one blunt tip, and both halves turn about that tip)
+  const zig = [[0, 0.62], [-0.12, 0.36], [0.1, 0.1], [-0.1, -0.18], [0.07, -0.5], [0, -0.97]];
   const half = sgn => {
     const s = new THREE.Shape(); s.moveTo(0, 0.62);
     for (const [x, y] of zig.slice(1)) s.lineTo(x, y);
-    s.bezierCurveTo(sgn * 0.35, -0.7, sgn * 1.1, -0.25, sgn * 1.1, 0.3);
+    s.lineTo(sgn * 0.07, -0.96);                                       // a short flat, level once tilted
+    s.bezierCurveTo(sgn * 0.4, -0.7, sgn * 1.1, -0.25, sgn * 1.1, 0.3);
     s.bezierCurveTo(sgn * 1.1, 0.85, sgn * 0.55, 1.08, sgn * 0.25, 0.95);
     s.bezierCurveTo(sgn * 0.1, 0.88, 0, 0.75, 0, 0.62);
     const g = new THREE.ExtrudeGeometry(s, { depth: 0.38, bevelEnabled: true, bevelThickness: 0.16, bevelSize: 0.1, bevelSegments: 5, curveSegments: 24 });
-    g.translate(0, 0, -0.19);
-    const m = new THREE.Mesh(g, matte(0xd9d0ea)); m.position.x = sgn * 0.14; m.rotation.z = -sgn * 0.14;
+    g.translate(0, 1, -0.19);                                          // pivot = the bottom tip
+    const m = new THREE.Mesh(g, matte(0xd9d0ea)); m.position.y = -1; m.rotation.z = -sgn * 0.14;
     return m;
   };
   const g = new THREE.Group(); g.add(half(-1), half(1));

@@ -588,12 +588,19 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .sbtn svg, .smic svg, .rbtn svg { filter: drop-shadow(0 calc(.03 * var(--bs)) 0 var(--jd)); }
 .sbtn:active, .smic:active, .rbtn:active { transform: none; translate: 0 calc(.2 * var(--e)); }
 @keyframes jumpPulse { 50% { transform: scale(1.12); box-shadow: 0 0 0 calc(1.4 * var(--u)) rgba(166,234,111,.6), inset 0 0 calc(.07 * var(--bs)) var(--jb), 0 var(--e) 0 0 var(--js); } }
-/* round buttons read round (user 2026-11-24 "버튼들이 다 높이가 더 긴 모양같은데"): the face was a full circle with a thick edge
-   under it, so face + edge stood taller than wide. Now the face is a little shorter than it is wide and the edge thinner —
-   together about as tall as wide, like a candy button seen from a little above */
-.sysbtn { height: calc(var(--hb) * .92); --e: calc(.06 * var(--hb)); }
-.sbtn, .smic, .rbtn { height: calc(var(--bs) * .92); --e: calc(.06 * var(--bs)); }
-.pad .pbtn { height: calc(13 * var(--u) * .92); }
-.jbtn { height: calc(16 * var(--u) * .92); }
-.pbtn { box-shadow: inset 0 calc(.5 * var(--u)) calc(.6 * var(--u)) rgba(255,255,255,.85), inset 0 calc(-1 * var(--u)) calc(1.6 * var(--u)) rgba(80,50,180,.28),
-    0 calc(.8 * var(--u)) 0 rgba(110,80,210,.45), 0 calc(1.6 * var(--u)) calc(2.2 * var(--u)) rgba(30,30,110,.26); }
+/* round buttons are exact circles (user 2026-11-24 "버튼들이 다 높이가 더 긴 모양같은데" → "또 찌그러져보이는데..정원 맞아?"):
+   a circle face with a solid edge under it stood taller than wide, and a shortened face read as an oval. Now the outline is
+   a true circle (width = height) and the edge is drawn INSIDE it — a crescent along the bottom — so nothing sticks out */
+.sysbtn { --e: calc(.08 * var(--hb)); translate: none;
+  box-shadow: inset 0 calc(-1 * var(--e)) 0 0 var(--js), inset 0 0 calc(.07 * var(--hb)) var(--jb), 0 calc(.05 * var(--hb)) calc(.14 * var(--hb)) rgba(40,20,120,.35); }
+.sysbtn:active { translate: 0 calc(.03 * var(--hb)); --e: calc(.04 * var(--hb)); }
+.sbtn, .sbtn.listen, .sbtn.jumpw, .smic, .smic.listen, .smic.think, .smic.ok, .rbtn, .rbtn.go, .rbtn.dressbtn { --e: calc(.08 * var(--bs)); translate: none;
+  box-shadow: inset 0 calc(-1 * var(--e)) 0 0 var(--js), inset 0 0 calc(.07 * var(--bs)) var(--jb), 0 calc(.05 * var(--bs)) calc(.14 * var(--bs)) rgba(40,20,120,.35); }
+.smic.listen { box-shadow: 0 0 0 calc((.8 + 2.2 * var(--lv)) * var(--u)) rgba(95,224,168,.45), inset 0 calc(-1 * var(--e)) 0 0 var(--js), inset 0 0 calc(.07 * var(--bs)) var(--jb); }
+.smic.ok { box-shadow: 0 0 0 calc(1.2 * var(--u)) rgba(255,210,63,.55), inset 0 calc(-1 * var(--e)) 0 0 var(--js), inset 0 0 calc(.07 * var(--bs)) var(--jb); }
+.sbtn:active, .smic:active, .rbtn:active { translate: 0 calc(.03 * var(--bs)); --e: calc(.04 * var(--bs)); }
+@keyframes jumpPulse { 50% { transform: scale(1.12); box-shadow: 0 0 0 calc(1.4 * var(--u)) rgba(166,234,111,.6), inset 0 calc(-1 * var(--e)) 0 0 var(--js), inset 0 0 calc(.07 * var(--bs)) var(--jb); } }
+.pbtn { box-shadow: inset 0 calc(-.9 * var(--u)) 0 0 rgba(110,80,210,.42), inset 0 calc(.5 * var(--u)) calc(.6 * var(--u)) rgba(255,255,255,.85),
+    inset 0 calc(-1.6 * var(--u)) calc(1.6 * var(--u)) rgba(80,50,180,.24), 0 calc(.7 * var(--u)) calc(2 * var(--u)) rgba(30,30,110,.26); }
+.pbtn.on { transform: translateY(calc(.4 * var(--u))) scale(.97); box-shadow: inset 0 calc(-.4 * var(--u)) 0 0 rgba(110,80,210,.42), inset 0 calc(.5 * var(--u)) calc(.6 * var(--u)) rgba(255,255,255,.85),
+    inset 0 calc(-1.6 * var(--u)) calc(1.6 * var(--u)) rgba(80,50,180,.3); }
