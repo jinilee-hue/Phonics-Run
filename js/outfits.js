@@ -338,12 +338,16 @@ function earF(x, y, z) {
 }
 
 // ---------------------------------------------------------------- wings: rounded feathers, white with lilac tips
-/** a plump wing (x out from the back, y up, z thickness): shoulder bar + body + four feather lobes, smoothly joined */
+// Tata's shirt profile (a copy of tata.js SHIRT / SZ — outfits.js can't import tata.js, which imports it): the scarf hugs it
+const SHIRT_P = [[0, -0.005], [0.405, -0.005], [0.432, 0.04], [0.445, 0.12], [0.445, 0.24], [0.44, 0.34], [0.425, 0.42], [0.39, 0.48], [0.31, 0.535], [0.16, 0.565], [0, 0.575]], SHIRT_SZ = 0.78;
+function shirtR(y) { for (let i = 1; i < SHIRT_P.length; i++) { const [r0, y0] = SHIRT_P[i - 1], [r1, y1] = SHIRT_P[i]; if (y <= y1 && y1 > y0) return r0 + (r1 - r0) * clamp((y - y0) / (y1 - y0), 0, 1); } return 0; }
+/** a small cute wing like the ones on the title logo (user 2026-11-24 "날개는 좀더 귀엽게 … 너무 커도 보기 시러 … 로고에 있는
+ *  날개 참고"): a round root and three plump rounded feathers stacked one above the other, reaching out sideways, the top
+ *  one longest — x out from the back, y up, z thickness */
 function wingF(x, y, z) {
-  let d = SDF.capsule(x, y, z, -0.02, 0.09, 0, 0.33, 0.2, 0, 0.078);                       // the round leading edge
-  d = SDF.smin(d, SDF.ellipsoid(x, y, z, 0.16, 0.05, 0, 0.2, 0.15, 0.075), 0.05);           // the full body
-  const lobes = [[0.04, 0.05, -1.55, 0.2, 0.06], [0.13, 0.08, -1.35, 0.25, 0.062], [0.22, 0.12, -1.12, 0.28, 0.06], [0.31, 0.16, -0.85, 0.26, 0.055]];
-  for (const [ax, ay, ang, L, r] of lobes) d = SDF.smin(d, SDF.capsule(x, y, z, ax, ay, 0, ax + Math.cos(ang) * L, ay + Math.sin(ang) * L, 0, r), 0.035);
+  let d = SDF.ellipsoid(x, y, z, 0.035, 0.05, 0, 0.075, 0.1, 0.055);
+  for (const [ax, ay, bx, by, r] of [[0.0, 0.11, 0.25, 0.17, 0.056], [0.0, 0.045, 0.21, 0.07, 0.05], [0.0, -0.02, 0.155, -0.025, 0.044]])
+    d = SDF.smin(d, SDF.capsule(x, y, z, ax, ay, 0, bx, by, 0, r), 0.028);
   return d;
 }
 function featherGeo(L, W, tint) {
@@ -547,23 +551,33 @@ const B = {
     const g = new THREE.Group(), knit = knitTex(), cols = ['#ff6f8f', '#ffe27a', '#6fc6ff'];
     const ringM = clay(0xffffff, 0.8); ringM.map = stripeTex(cols, false).clone(); ringM.map.needsUpdate = true; ringM.map.repeat.set(9, 1);
     ringM.bumpMap = knit.clone(); ringM.bumpMap.needsUpdate = true; ringM.bumpMap.repeat.set(11, 1); ringM.bumpScale = 2.5;
-    // a soft squarish band (a superellipse section), not a round tube: wound cloth, not a swim ring
-    const prof = []; for (let i = 0; i <= 28; i++) { const a = (i / 28) * TAU, c = Math.cos(a), s = Math.sin(a); prof.push(new THREE.Vector2(0.37 + 0.085 * Math.sign(c) * Math.abs(c) ** 0.6, -0.11 * Math.sign(s) * Math.abs(s) ** 0.6)); }   // wide and full: it lies over the collar, below the chin
-    const rg = new THREE.LatheGeometry(prof, 72, Math.PI), rp = rg.getAttribute('position');
+    // the band lies ON the shirt's sloping shoulders round the neck: its inner face follows the shirt (tata.js SHIRT, copied
+    // below) and it puffs out from there — a round ring cut in and out of the shirt and broke up front and back (user
+    // 2026-11-24 "목도리는 앞뒤로 깨지네"). Built in the torso's own frame (tata.js places it at the torso origin).
+    const prof = [], Y0 = 0.43, Y1 = 0.56, N = 14;
+    const inner = [], outer = [];
+    for (let i = 0; i <= N; i++) {
+      const y = Y0 + (Y1 - Y0) * i / N, r = shirtR(y) + 0.008, dr = (shirtR(y + 0.005) - shirtR(y - 0.005)) / 0.01;
+      const n = new THREE.Vector2(1, -dr).normalize(), th = 0.025 + 0.075 * Math.sin(Math.PI * i / N) ** 0.7;   // puffed in the middle
+      inner.push(new THREE.Vector2(r, y)); outer.push(new THREE.Vector2(r + n.x * th, y + n.y * th));
+    }
+    prof.push(...outer, ...inner.reverse());
+    prof.push(prof[0].clone());
+    const rg = new THREE.LatheGeometry(prof, 72), rp = rg.getAttribute('position');
     for (let i = 0; i < rp.count; i++) {   // a little uneven, as wound cloth is
-      const x = rp.getX(i), z = rp.getZ(i), a = Math.atan2(x, z), k = 1 + 0.035 * Math.sin(2 * a + 1) + 0.02 * Math.sin(5 * a);
-      rp.setXYZ(i, x * k, rp.getY(i) + 0.012 * Math.sin(3 * a + 0.5), z * k);
+      const x = rp.getX(i), z = rp.getZ(i), a = Math.atan2(x, z), k = 1 + 0.02 * Math.sin(2 * a + 1) + 0.012 * Math.sin(5 * a);
+      rp.setXYZ(i, x * k, rp.getY(i) + 0.008 * Math.sin(3 * a + 0.5), z * k);
     }
     rg.computeVertexNormals();
-    const ring = new THREE.Mesh(rg, ringM); ring.rotation.x = 0.12; ring.scale.set(1, 1, 0.95); g.add(ring);
+    const ring = new THREE.Mesh(rg, ringM); ring.scale.z = SHIRT_SZ; g.add(ring);
     const endM = clay(0xffffff, 0.8); endM.map = stripeTex(cols, true).clone(); endM.map.needsUpdate = true; endM.map.repeat.set(1, 2);
     endM.bumpMap = knit.clone(); endM.bumpMap.needsUpdate = true; endM.bumpMap.repeat.set(2, 5); endM.bumpScale = 2.5;
-    const knot = E(0.095, 0.085, 0.06, endM, 24); knot.position.set(-0.13, -0.05, 0.42); knot.rotation.z = 0.3; g.add(knot);
+    const knot = E(0.095, 0.085, 0.06, endM, 24); knot.position.set(-0.13, 0.47, 0.37); knot.rotation.z = 0.3; g.add(knot);
     const fr = cols.map(c => clay(new THREE.Color(c).getHex(), 0.85));
     for (const [x, len, w, rz, rx] of [[-0.135, 0.3, 0.118, -0.1, -0.12], [-0.06, 0.22, 0.108, 0.13, -0.06]]) {
       const geo = new RoundedBoxGeometry(w, len, 0.034, 3, 0.015), p = geo.getAttribute('position'), uv = geo.getAttribute('uv');
       for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / w + 0.5, p.getY(i) / len + 0.5);   // stripes across the end
-      const end = new THREE.Mesh(geo, endM); end.position.set(x, -0.05 - len / 2 + 0.02, 0.43 + (x < -0.1 ? 0 : 0.012)); end.rotation.set(rx, 0, rz); g.add(end);
+      const end = new THREE.Mesh(geo, endM); end.position.set(x, 0.45 - len / 2 + 0.02, 0.4 + (x < -0.1 ? 0 : 0.012)); end.rotation.set(rx, 0, rz); g.add(end);
       for (let k = 0; k < 5; k++) {
         const t = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.035, 3, 8), fr[k % 3]); t.position.set((k - 2) * (w - 0.025) / 4, -len / 2 - 0.022, 0); end.add(t);
       }
@@ -599,15 +613,13 @@ const B = {
     return g;
   },
   wings() {
-    // plump cartoon wings (user 2026-11-24 "날개가 납작하지않고 통통한 날개로 볼륨감 살아있게"): each wing is ONE soft lump —
-    // a round shoulder bar, a full body and four fat feather lobes fanning down, blended together so it puffs out on both
-    // sides — white, turning lilac toward the lobe tips. Flat extruded feathers before.
-    const g = new THREE.Group(), white = lin(0xfdfbff), lil = lin(0xc9b2ff);
-    const geo = lump('wingPuff', wingF, [-0.12, -0.36, -0.13, 0.6, 0.32, 0.13], 0.0085, {
-      color: (x, y, z, out) => { const k = sstep(0.02, -0.24, y - 0.25 * x), c = white.clone().lerp(lil, 0.85 * k); out[0] = c.r; out[1] = c.g; out[2] = c.b; },
+    // small, plump and white like the logo's wings (wingF): one soft lump per wing, a touch of cool shade underneath
+    const g = new THREE.Group(), white = lin(0xffffff), shade = lin(0xe3e9f6);
+    const geo = lump('wingCute', wingF, [-0.06, -0.09, -0.08, 0.33, 0.25, 0.08], 0.006, {
+      color: (x, y, z, out) => { const k = sstep(0.1, -0.05, y), c = white.clone().lerp(shade, 0.7 * k); out[0] = c.r; out[1] = c.g; out[2] = c.b; },
     });
     for (const s of [-1, 1]) {
-      const wing = new THREE.Group(); wing.position.set(s * 0.1, 0, 0); wing.rotation.set(0, s * 0.45, s * 0.25); wing.name = s < 0 ? 'wingL' : 'wingR';
+      const wing = new THREE.Group(); wing.position.set(s * 0.1, 0.02, 0); wing.rotation.set(0, s * 0.3, s * 0.26); wing.scale.setScalar(1.2); wing.name = s < 0 ? 'wingL' : 'wingR';   // tips up, like the logo
       const m = new THREE.Mesh(geo, vcol(0.55)); m.scale.x = s; wing.add(m); g.add(wing);
     }
     return g;

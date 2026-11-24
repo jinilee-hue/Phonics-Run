@@ -559,13 +559,47 @@ export function macarons(g, s) {
     const bottom = new THREE.Mesh(new THREE.CylinderGeometry(0.42 * s, 0.42 * s, 0.01, 28), shell); bottom.position.y = y + 0.005; if (i === 0) g.add(bottom);
   }
 }
-/** a big chocolate-chip cookie standing up on its edge, leaning back a little */
+/** a big chocolate-chip cookie standing up on its edge, leaning back a little — baked texture (user 2026-11-24 "쿠키는 질감을
+ *  좀 살려서"): golden middle browning toward a lumpy rim, crackled surface with crumbs and pores (colour + bump), chips
+ *  of different sizes half sunk in */
+const cookieTex = () => (cookieTex.t ||= (() => {
+  const S = 256, col = document.createElement('canvas'), bump = document.createElement('canvas'); col.width = col.height = bump.width = bump.height = S;
+  const c = col.getContext('2d'), b = bump.getContext('2d');
+  const gr = c.createRadialGradient(S / 2, S / 2, S * 0.1, S / 2, S / 2, S / 2); gr.addColorStop(0, '#f2c27e'); gr.addColorStop(0.7, '#e0a35a'); gr.addColorStop(1, '#b8743a');
+  c.fillStyle = gr; c.fillRect(0, 0, S, S); b.fillStyle = '#808080'; b.fillRect(0, 0, S, S);
+  for (let i = 0; i < 2600; i++) {                     // speckles and pores
+    const x = Math.random() * S, y = Math.random() * S, r = Math.random() * 1.8 + 0.4, d = Math.random() < 0.5;
+    c.fillStyle = d ? `rgba(140,80,30,${0.15 + Math.random() * 0.25})` : `rgba(255,225,170,${0.15 + Math.random() * 0.25})`; c.beginPath(); c.arc(x, y, r, 0, 6.3); c.fill();
+    b.fillStyle = d ? '#5a5a5a' : '#a6a6a6'; b.beginPath(); b.arc(x, y, r, 0, 6.3); b.fill();
+  }
+  for (let i = 0; i < 9; i++) {                        // cracks
+    let x = S / 2 + (Math.random() - 0.5) * S * 0.7, y = S / 2 + (Math.random() - 0.5) * S * 0.7, a = Math.random() * 6.3;
+    c.strokeStyle = 'rgba(150,90,35,.55)'; b.strokeStyle = '#3c3c3c'; c.lineWidth = b.lineWidth = 2 + Math.random() * 1.5;
+    c.beginPath(); b.beginPath(); c.moveTo(x, y); b.moveTo(x, y);
+    for (let k = 0; k < 5; k++) { a += (Math.random() - 0.5) * 1.2; x += Math.cos(a) * 12; y += Math.sin(a) * 12; c.lineTo(x, y); b.lineTo(x, y); }
+    c.stroke(); b.stroke();
+  }
+  const tc = new THREE.CanvasTexture(col), tb = new THREE.CanvasTexture(bump); tc.colorSpace = THREE.SRGBColorSpace;
+  return { tc, tb };
+})());
 export function cookie(g, s) {
   const c = new THREE.Group(); c.position.y = 0.72 * s; c.rotation.x = -0.25;
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.75 * s, 0.75 * s, 0.16 * s, 32), softM(0xdda05a)); body.rotation.x = Math.PI / 2; c.add(body);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.74 * s, 0.08 * s, 8, 36), softM(0xc98a46)); c.add(rim);
-  const chip = std(0x4a2814, 0.5);
-  for (let i = 0; i < 11; i++) { const a = rr(0, 6.28), r = rr(0, 0.6) * s; for (const sz of [-1, 1]) { const ch = new THREE.Mesh(new THREE.SphereGeometry(0.07 * s, 8, 6), chip); ch.scale.set(1, 0.8, 0.6); ch.position.set(Math.cos(a) * r, Math.sin(a) * r, sz * 0.085 * s); c.add(ch); } }
+  const { tc, tb } = cookieTex(), dough = new THREE.MeshStandardMaterial({ map: tc, bumpMap: tb, bumpScale: 2.2, roughness: 0.85 });
+  // a thick disc, domed on both faces, with a lumpy uneven rim
+  const geo = new THREE.CylinderGeometry(0.75 * s, 0.75 * s, 0.18 * s, 48, 1).rotateX(Math.PI / 2), p = geo.getAttribute('position'), uv = geo.getAttribute('uv'), ph = rr(0, 6);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), zz = p.getZ(i), r = Math.hypot(x, y), a = Math.atan2(y, x), k = 1 + 0.025 * Math.sin(a * 5 + ph) + 0.02 * Math.sin(a * 11 + ph * 2);
+    p.setXYZ(i, x * k, y * k, zz * (1 + 0.35 * (1 - (r / (0.75 * s)) ** 2)));
+    uv.setXY(i, 0.5 + x / (1.6 * s), 0.5 + y / (1.6 * s));
+  }
+  geo.computeVertexNormals();
+  c.add(new THREE.Mesh(geo, dough));
+  const chip = std(0x4a2814, 0.45);
+  for (let i = 0; i < 14; i++) {
+    const a = rr(0, 6.28), r = Math.sqrt(rnd()) * 0.6 * s, sz = rr(0.05, 0.1) * s;
+    for (const side of [-1, 1]) { const ch = new THREE.Mesh(new THREE.DodecahedronGeometry(sz, 0), chip); ch.scale.set(1, 0.85, 0.6); ch.rotation.set(rr(0, 3), rr(0, 3), 0);
+      ch.position.set(Math.cos(a) * r, Math.sin(a) * r, side * (0.09 * s * (1 + 0.35 * (1 - (r / (0.75 * s)) ** 2)) - sz * 0.2)); c.add(ch); }
+  }
   g.add(c);
 }
 export function bush(parent, x, z, s = 1, y = 0) {
