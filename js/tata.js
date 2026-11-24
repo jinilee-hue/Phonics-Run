@@ -413,7 +413,7 @@ export class Tata {
       crown: ['head', [0, HB - 0.02, -0.02], [0, 0, 0.1]],
       roundglasses: ['face'], starglasses: ['face'], shades: ['face'],
       bowtie: ['torso', [0, 0.45, 0.335], [-0.25, 0, 0]],
-      scarf: ['torso', [0, 0.545, 0.01], [0, 0, 0], [1.08, 1, 1]],
+      scarf: ['torso', [0, 0.49, 0.0], [0, 0, 0], [1.02, 1, 1]],
       cape: ['torso', [0, 0.48, -0.25], [0, 0, 0]],
       wings: ['torso', [0, 0.36, -0.36], [0.15, 0, 0]],
     };

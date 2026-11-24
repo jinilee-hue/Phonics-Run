@@ -338,6 +338,14 @@ function earF(x, y, z) {
 }
 
 // ---------------------------------------------------------------- wings: rounded feathers, white with lilac tips
+/** a plump wing (x out from the back, y up, z thickness): shoulder bar + body + four feather lobes, smoothly joined */
+function wingF(x, y, z) {
+  let d = SDF.capsule(x, y, z, -0.02, 0.09, 0, 0.33, 0.2, 0, 0.078);                       // the round leading edge
+  d = SDF.smin(d, SDF.ellipsoid(x, y, z, 0.16, 0.05, 0, 0.2, 0.15, 0.075), 0.05);           // the full body
+  const lobes = [[0.04, 0.05, -1.55, 0.2, 0.06], [0.13, 0.08, -1.35, 0.25, 0.062], [0.22, 0.12, -1.12, 0.28, 0.06], [0.31, 0.16, -0.85, 0.26, 0.055]];
+  for (const [ax, ay, ang, L, r] of lobes) d = SDF.smin(d, SDF.capsule(x, y, z, ax, ay, 0, ax + Math.cos(ang) * L, ay + Math.sin(ang) * L, 0, r), 0.035);
+  return d;
+}
 function featherGeo(L, W, tint) {
   return memo(`feather${L}_${W}_${tint}`, () => {
     const s = new THREE.Shape(), r = W / 2;
@@ -444,7 +452,10 @@ const B = {
   bunny() {
     // a pink headband over the head with two tall ears (cream, pink inside); origin = the head centre's top
     const g = new THREE.Group(), [ha, hb] = HEAD, band = [];
-    for (let i = 0; i <= 28; i++) { const t = Math.PI * (0.03 + 0.94 * i / 28); band.push(V(Math.cos(t) * (ha + 0.014), Math.sin(t) * (hb + 0.014) - 0.455, 0)); }
+    // the band sits a little forward of the tuft's root (it ran through it, and its middle vanished — user 2026-11-24
+    // "머리끈이 분홍색 가운데가 끊겼는데 이어줘"), hugging the head's cross-section there (z = 0.15 from the head centre)
+    const bz = 0.13, k = Math.sqrt(1 - ((bz + 0.02) / HEAD[2]) ** 2);
+    for (let i = 0; i <= 28; i++) { const t = Math.PI * (0.03 + 0.94 * i / 28); band.push(V(Math.cos(t) * (ha * k + 0.018), Math.sin(t) * (hb * k + 0.018) - 0.455, bz)); }
     g.add(tube(band, 0.036, soft(0xff86b4, 0.4), false, 64));
     for (const p of [band[0], band[28]]) { const c = E(0.036, 0.036, 0.036, soft(0xff86b4, 0.4), 16); c.position.copy(p); g.add(c); }
     const cream = lin(0xfff4e6), pink = lin(0xffa0c0);
@@ -537,22 +548,22 @@ const B = {
     const ringM = clay(0xffffff, 0.8); ringM.map = stripeTex(cols, false).clone(); ringM.map.needsUpdate = true; ringM.map.repeat.set(9, 1);
     ringM.bumpMap = knit.clone(); ringM.bumpMap.needsUpdate = true; ringM.bumpMap.repeat.set(11, 1); ringM.bumpScale = 2.5;
     // a soft squarish band (a superellipse section), not a round tube: wound cloth, not a swim ring
-    const prof = []; for (let i = 0; i <= 28; i++) { const a = (i / 28) * TAU, c = Math.cos(a), s = Math.sin(a); prof.push(new THREE.Vector2(0.3 + 0.068 * Math.sign(c) * Math.abs(c) ** 0.6, -0.095 * Math.sign(s) * Math.abs(s) ** 0.6)); }
+    const prof = []; for (let i = 0; i <= 28; i++) { const a = (i / 28) * TAU, c = Math.cos(a), s = Math.sin(a); prof.push(new THREE.Vector2(0.37 + 0.085 * Math.sign(c) * Math.abs(c) ** 0.6, -0.11 * Math.sign(s) * Math.abs(s) ** 0.6)); }   // wide and full: it lies over the collar, below the chin
     const rg = new THREE.LatheGeometry(prof, 72, Math.PI), rp = rg.getAttribute('position');
     for (let i = 0; i < rp.count; i++) {   // a little uneven, as wound cloth is
       const x = rp.getX(i), z = rp.getZ(i), a = Math.atan2(x, z), k = 1 + 0.035 * Math.sin(2 * a + 1) + 0.02 * Math.sin(5 * a);
       rp.setXYZ(i, x * k, rp.getY(i) + 0.012 * Math.sin(3 * a + 0.5), z * k);
     }
     rg.computeVertexNormals();
-    const ring = new THREE.Mesh(rg, ringM); ring.rotation.x = 0.12; ring.scale.set(1, 1, 0.88); g.add(ring);
+    const ring = new THREE.Mesh(rg, ringM); ring.rotation.x = 0.12; ring.scale.set(1, 1, 0.95); g.add(ring);
     const endM = clay(0xffffff, 0.8); endM.map = stripeTex(cols, true).clone(); endM.map.needsUpdate = true; endM.map.repeat.set(1, 2);
     endM.bumpMap = knit.clone(); endM.bumpMap.needsUpdate = true; endM.bumpMap.repeat.set(2, 5); endM.bumpScale = 2.5;
-    const knot = E(0.08, 0.072, 0.052, endM, 24); knot.position.set(-0.11, -0.03, 0.315); knot.rotation.z = 0.3; g.add(knot);
+    const knot = E(0.095, 0.085, 0.06, endM, 24); knot.position.set(-0.13, -0.05, 0.42); knot.rotation.z = 0.3; g.add(knot);
     const fr = cols.map(c => clay(new THREE.Color(c).getHex(), 0.85));
     for (const [x, len, w, rz, rx] of [[-0.135, 0.3, 0.118, -0.1, -0.12], [-0.06, 0.22, 0.108, 0.13, -0.06]]) {
       const geo = new RoundedBoxGeometry(w, len, 0.034, 3, 0.015), p = geo.getAttribute('position'), uv = geo.getAttribute('uv');
       for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / w + 0.5, p.getY(i) / len + 0.5);   // stripes across the end
-      const end = new THREE.Mesh(geo, endM); end.position.set(x, -0.03 - len / 2 + 0.02, 0.338 + (x < -0.1 ? 0 : 0.012)); end.rotation.set(rx, 0, rz); g.add(end);
+      const end = new THREE.Mesh(geo, endM); end.position.set(x, -0.05 - len / 2 + 0.02, 0.43 + (x < -0.1 ? 0 : 0.012)); end.rotation.set(rx, 0, rz); g.add(end);
       for (let k = 0; k < 5; k++) {
         const t = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.035, 3, 8), fr[k % 3]); t.position.set((k - 2) * (w - 0.025) / 4, -len / 2 - 0.022, 0); end.add(t);
       }
@@ -588,20 +599,16 @@ const B = {
     return g;
   },
   wings() {
-    // two angel wings: a rounded leading edge, a row of small round coverts, a middle row, long primaries fanned below
-    const g = new THREE.Group(), m = vcol(0.6);
-    const arm = t => new THREE.Vector2(0.3 * t, 0.06 + 0.13 * Math.sin(t * Math.PI * 0.75));
+    // plump cartoon wings (user 2026-11-24 "날개가 납작하지않고 통통한 날개로 볼륨감 살아있게"): each wing is ONE soft lump —
+    // a round shoulder bar, a full body and four fat feather lobes fanning down, blended together so it puffs out on both
+    // sides — white, turning lilac toward the lobe tips. Flat extruded feathers before.
+    const g = new THREE.Group(), white = lin(0xfdfbff), lil = lin(0xc9b2ff);
+    const geo = lump('wingPuff', wingF, [-0.12, -0.36, -0.13, 0.6, 0.32, 0.13], 0.0085, {
+      color: (x, y, z, out) => { const k = sstep(0.02, -0.24, y - 0.25 * x), c = white.clone().lerp(lil, 0.85 * k); out[0] = c.r; out[1] = c.g; out[2] = c.b; },
+    });
     for (const s of [-1, 1]) {
       const wing = new THREE.Group(); wing.position.set(s * 0.1, 0, 0); wing.rotation.set(0, s * 0.45, s * 0.25); wing.name = s < 0 ? 'wingL' : 'wingR';
-      const w = new THREE.Group(); w.scale.x = s; wing.add(w); g.add(wing);
-      const add = (L, W, tint, t, dy, ang, z) => { const a = arm(t), f = new THREE.Mesh(featherGeo(L, W, tint), m); f.position.set(a.x, a.y + dy, z); f.rotation.z = ang; w.add(f); };
-      for (let i = 0; i < 6; i++) add(+(0.16 + 0.17 * i / 5).toFixed(3), 0.07, 1, 0.12 + 0.88 * i / 5, -0.035, -1.5 + 1.15 * i / 5, 0.006 - i * 0.004);
-      for (let i = 0; i < 5; i++) add(+(0.11 + 0.08 * i / 4).toFixed(3), 0.068, 0.6, 0.08 + 0.84 * i / 4, -0.012, -1.42 + 1.0 * i / 4, -0.02 - i * 0.004);
-      for (let i = 0; i < 5; i++) add(0.075, 0.064, 0.25, 0.04 + 0.9 * i / 4, 0.01, -1.3 + 0.85 * i / 4, -0.042 - i * 0.004);
-      const lead = []; for (let i = 0; i <= 10; i++) { const a = arm(i / 10); lead.push(V(a.x, a.y + 0.005, -0.04)); }
-      const white = soft(0xffffff, 0.6);
-      w.add(tube(lead, 0.034, white, false, 24));
-      for (const p of [lead[0], lead[10]]) { const c = E(0.034, 0.034, 0.034, white, 16); c.position.copy(p); w.add(c); }
+      const m = new THREE.Mesh(geo, vcol(0.55)); m.scale.x = s; wing.add(m); g.add(wing);
     }
     return g;
   },
@@ -641,10 +648,7 @@ const B = {
       g.add(tube([top, V(s * 0.016, top.y - 0.03, lz(top.y - 0.03) + 0.008), V(s * 0.03, top.y - 0.062, lz(top.y - 0.062) + 0.008)], 0.0085, lace, false, 10));
     }
     const knot = E(0.013, 0.013, 0.011, lace, 12); knot.position.copy(top); g.add(knot);
-    // a pink polka-dot bow on the outer side, on top of the collar
-    const rb = ribbon(true), a = 0.95, cr = 0.15; rb.scale.setScalar(0.38);
-    rb.position.set(Math.sin(a) * cr, 0.072 - 0.12 * (Math.cos(a) * cr) + 0.03, -0.03 + Math.cos(a) * cr);
-    rb.rotation.set(-0.35, a, 0.2); g.add(rb);
+    // (no polka-dot bow on the side any more — user 2026-11-24 "운동화에 신발에 리본은 과한거 같아")
     return g;
   },
 };
