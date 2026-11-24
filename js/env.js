@@ -169,7 +169,7 @@ export const THEMES = {
   },
   candy: {
     sky: [0x5aa6f0, 0xb6dcff, 0xffd6ea], fog: [0xffe2f0, 55, 210], hemi: [0xffe8f2, 0xc98aa8, 1.0], sun: [0xffe2c8, 2.75],
-    shadow: 0.6, env: 0.3, exposure: 0.97, bloom: [0, 9], grass: 0xffb5d6, grassGlow: 0, dirt: [0x4a2414, 0x6c3a20, 0x8a5230, 0xf3e2cc],
+    shadow: 0.6, env: 0.6, exposure: 0.97, bloom: [0, 9], grass: 0xffb5d6, grassGlow: 0, dirt: [0x4a2414, 0x6c3a20, 0x8a5230, 0xf3e2cc],
     tree: 'candy', fence: { color: 0xffffff, stripes: '#ff4f5e' }, cloud: [0xffe4f1, 0xff9cc8, 0.35], path: 0xe8b46a,
     frostings: [0xffb5d6, 0xffd0e6, 0xf6c8ff], balloons: [['#ff6fa8', '#fff3c4'], ['#ffb347', '#ffffff'], ['#a57bff', '#ffd6f0']],
     cardGlow: 0.18, playerLight: 0, stars: false,
@@ -305,7 +305,9 @@ function swirlTex(a, b) {
 // ---- candy land (user 2026-11-23: "사탕들도 귀엽게 조금 더 입체감 있게, 파스텔 톤, 토핑 바른 것들도"): glossy pastel candy
 export const PASTEL = [0xff8cbf, 0x63d9ad, 0xae8cff, 0xffd447, 0xff9c66, 0x6fbcff];   // candy: a step stronger than the pastel icing ground
 export const SPRINKLE = [0xff7fb0, 0x7fd8ff, 0xffe066, 0x9cf0a8, 0xc59bff, 0xffffff];
-export const candyM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08, sheen: 0.3, sheenColor: new THREE.Color(0xffffff) });
+// a softer clearcoat than before (1 / 0.08): at grazing angles a full clearcoat shows the dim environment instead of the
+// pastel, which drew a dark line round every sweet (user 2026-11-24 "사탕맵만 … 검은색 라인이 들어간거처럼")
+export const candyM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.25, clearcoat: 0.45, clearcoatRoughness: 0.22, sheen: 0.3, sheenColor: new THREE.Color(0xffffff) });
 export const softM = c => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.55, sheen: 0.6, sheenColor: new THREE.Color(0xffffff) });
 let sprinkleGeo = null;
 /** colourful sprinkles scattered over a surface: pts = [[x, y, z, nx, ny, nz]] (instanced) */
@@ -351,7 +353,7 @@ export function lollipop(g, s) {
   const geo = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r * s, y * s)), 48);
   const p = geo.getAttribute('position'), uv = geo.getAttribute('uv');
   for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / (0.74 * s) * 0.5 + 0.5, p.getZ(i) / (0.74 * s) * 0.5 + 0.5);
-  const m = new THREE.MeshPhysicalMaterial({ map: swirlTex2(a, b), roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.06 });
+  const m = new THREE.MeshPhysicalMaterial({ map: swirlTex2(a, b), roughness: 0.2, clearcoat: 0.45, clearcoatRoughness: 0.2 });
   const disc = new THREE.Mesh(geo, m); disc.rotation.x = Math.PI / 2; disc.position.y = 2.0 * s; g.add(disc);
   // a ribbon bow where the stick meets the candy
   const bowM = softM(PASTEL[(rnd() * PASTEL.length) | 0]);
@@ -439,18 +441,82 @@ export function tree(parent, x, z, s = 1, y = 0) {
   parent.add(shade(g));
   return g;
 }
-const gumProf = [[0, 0], [0.34, 0], [0.37, 0.07], [0.31, 0.28], [0.19, 0.42], [0, 0.47]].map(([r, y]) => new THREE.Vector2(r, y));
+// a gumdrop: wide flat base, round shoulders, a soft peak; sugar = a speckle texture + a soft sheen
+const gumGeo = () => (gumGeo.g ||= (() => { const pts = [[0, 0], [0.4, 0], [0.43, 0.05], [0.42, 0.16], [0.36, 0.32], [0.26, 0.45], [0.14, 0.53], [0.05, 0.57], [0, 0.58]];
+  return new THREE.LatheGeometry(pts.map(([r, h]) => new THREE.Vector2(r, h)), 36); })());
+const sugarTex = () => (sugarTex.t ||= (() => { const t = canvasTex(256, 256, g => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 1400; i++) { const v = 200 + Math.random() * 55; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); }
+  for (let i = 0; i < 160; i++) { g.fillStyle = 'rgba(255,255,255,1)'; g.fillRect(Math.random() * 256, Math.random() * 256, 3, 3); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); return t; })());
+const gumMats = {};
+const gumM = c => (gumMats[c] ||= new THREE.MeshPhysicalMaterial({ color: c, map: sugarTex(), roughness: 0.62, sheen: 0.8, sheenColor: new THREE.Color(0xffffff), sheenRoughness: 0.45 }));
+const stripeTex = (a, b) => (stripeTex[a + b] ||= (() => { const t = canvasTex(128, 128, g => { g.fillStyle = a; g.fillRect(0, 0, 128, 128); g.fillStyle = b;
+  for (let i = 0; i < 6; i++) { g.save(); g.translate(64, 64); g.rotate(i / 6 * Math.PI * 2); g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(40, 10, 64, -6); g.lineTo(64, 14); g.quadraticCurveTo(34, 22, 0, 0); g.fill(); g.restore(); } }); return t; })());
+/** a round sweet with pinwheel stripes in a clear pleated wrapper twisted at both ends (along x) */
+function wrappedSweet(s) {
+  const g = new THREE.Group(), [a, b] = [['#ff5c8a', '#ffffff'], ['#3fcf9c', '#ffffff'], ['#9d74ff', '#fff3b8'], ['#ffb02e', '#ffffff']][(rnd() * 4) | 0];
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.3 * s, 32, 20), new THREE.MeshPhysicalMaterial({ map: stripeTex(a, b), roughness: 0.25, clearcoat: 0.45, clearcoatRoughness: 0.2 }));
+  body.scale.set(1, 0.72, 1); body.rotation.x = Math.PI / 2; g.add(body);
+  const wrapM = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(a), roughness: 0.2, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+  for (const sx of [-1, 1]) {
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05 * s, 0.05 * s, 0.1 * s, 12), wrapM); neck.rotation.z = Math.PI / 2; neck.position.x = sx * 0.34 * s; g.add(neck);
+    // the pleated fan: a cone whose rim waves in and out
+    const fan = new THREE.ConeGeometry(0.24 * s, 0.3 * s, 36, 1, true), fp = fan.getAttribute('position');
+    for (let i = 0; i < fp.count; i++) { const x = fp.getX(i), z = fp.getZ(i), y = fp.getY(i); if (y < 0) { const a2 = Math.atan2(z, x), k = 1 + 0.18 * Math.sin(a2 * 9); fp.setX(i, x * k); fp.setZ(i, z * k); } }
+    fan.computeVertexNormals();
+    const f = new THREE.Mesh(fan, wrapM); f.rotation.z = sx * Math.PI / 2; f.position.x = sx * 0.52 * s; g.add(f);
+  }
+  return g;
+}
+/** a ring donut lying flat: golden dough, glaze on top with a wavy edge, sprinkles */
+export function donutFlat(g, s) {
+  const dough = new THREE.Mesh(new THREE.TorusGeometry(0.5 * s, 0.26 * s, 20, 40), softM(0xe9a95e)); dough.rotation.x = Math.PI / 2; dough.position.y = 0.26 * s; g.add(dough);
+  const geo = new THREE.TorusGeometry(0.5 * s, 0.27 * s, 20, 40), p = geo.getAttribute('position');
+  for (let i = 0; i < p.count; i++) { const zz = p.getZ(i), a = Math.atan2(p.getY(i), p.getX(i)), lim = 0.02 * s - 0.07 * s * (0.5 + 0.5 * Math.sin(a * 9)); if (zz < lim) p.setZ(i, lim + (zz - lim) * 0.12); }
+  geo.computeVertexNormals();
+  const glaze = new THREE.Mesh(geo, candyM(PASTEL[(rnd() * PASTEL.length) | 0])); glaze.rotation.x = -Math.PI / 2; glaze.position.y = 0.27 * s; g.add(glaze);
+  const pts = []; for (let i = 0; i < 30; i++) { const a = rr(0, 6.28), r = rr(0.32, 0.68) * s; pts.push([Math.cos(a) * r, 0.5 * s, Math.sin(a) * r]); }
+  g.add(sprinkleMesh(pts, s));
+}
+/** a croissant: tapered rolls bent into a crescent, golden with darker creases */
+export function croissant(g, s) {
+  const m = softM(0xe7a34e), dark = softM(0xb8702c), N = 7;
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1), a = (t - 0.5) * 2.1, r = (0.34 - 0.2 * Math.abs(t - 0.5) * 2) * s;
+    const seg = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), i % 2 ? dark : m); seg.scale.set(r * 0.9, r, r * 1.05);
+    seg.position.set(Math.sin(a) * 0.7 * s, r * 0.95, -Math.cos(a) * 0.7 * s + 0.7 * s); seg.rotation.y = -a; g.add(seg);
+  }
+}
+/** a stack of macarons: two domed shells with a cream filling, in pastel colours */
+export function macarons(g, s) {
+  const n = 2 + ((rnd() * 2) | 0);
+  for (let i = 0; i < n; i++) {
+    const c = PASTEL[(rnd() * PASTEL.length) | 0], y = i * 0.42 * s, shell = softM(c);
+    for (const up of [0, 1]) { const h = new THREE.Mesh(new THREE.SphereGeometry(0.42 * s, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), shell); h.scale.y = 0.4; if (!up) h.rotation.x = Math.PI; h.position.y = y + (up ? 0.24 : 0.17) * s; g.add(h);
+      const foot = new THREE.Mesh(new THREE.TorusGeometry(0.4 * s, 0.035 * s, 6, 28), shell); foot.rotation.x = Math.PI / 2; foot.position.y = y + (up ? 0.235 : 0.175) * s; g.add(foot); }
+    const cream = new THREE.Mesh(new THREE.CylinderGeometry(0.37 * s, 0.37 * s, 0.07 * s, 28), softM(0xfff6ea)); cream.position.y = y + 0.205 * s; g.add(cream);
+    const bottom = new THREE.Mesh(new THREE.CylinderGeometry(0.42 * s, 0.42 * s, 0.01, 28), shell); bottom.position.y = y + 0.005; if (i === 0) g.add(bottom);
+  }
+}
+/** a big chocolate-chip cookie standing up on its edge, leaning back a little */
+export function cookie(g, s) {
+  const c = new THREE.Group(); c.position.y = 0.72 * s; c.rotation.x = -0.25;
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.75 * s, 0.75 * s, 0.16 * s, 32), softM(0xdda05a)); body.rotation.x = Math.PI / 2; c.add(body);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.74 * s, 0.08 * s, 8, 36), softM(0xc98a46)); c.add(rim);
+  const chip = std(0x4a2814, 0.5);
+  for (let i = 0; i < 11; i++) { const a = rr(0, 6.28), r = rr(0, 0.6) * s; for (const sz of [-1, 1]) { const ch = new THREE.Mesh(new THREE.SphereGeometry(0.07 * s, 8, 6), chip); ch.scale.set(1, 0.8, 0.6); ch.position.set(Math.cos(a) * r, Math.sin(a) * r, sz * 0.085 * s); c.add(ch); } }
+  g.add(c);
+}
 export function bush(parent, x, z, s = 1, y = 0) {
-  if (TH.tree === 'candy') {                                   // pastel gumdrops (sugared) and a wrapped sweet
+  if (TH.tree === 'candy') {                                   // a little heap of sweets: gumdrops of different sizes + a wrapped sweet
+    // (user 2026-11-24 "사탕 젤리 등도 좀더 형태가 명확했으면", "크기도 크고 작고"): classic gumdrops — flat base, rounded
+    // shoulders, a soft peak — coated in sparkly sugar; a peppermint-striped sweet in a pleated wrapper twisted at both ends
     const g = new THREE.Group(); g.position.set(x, y, z);
-    for (let i = 0; i < 2; i++) {
-      const c = PASTEL[(rnd() * PASTEL.length) | 0];
-      const m = new THREE.Mesh(new THREE.LatheGeometry(gumProf, 28), new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.75, sheen: 1, sheenColor: new THREE.Color(0xffffff), sheenRoughness: 0.3 }));
-      m.scale.setScalar(s * rr(0.9, 1.2)); m.position.set((i ? 0.55 : -0.55) * s, 0, rr(-0.15, 0.15)); g.add(m);
+    const n = 2 + ((rnd() * 2) | 0);
+    for (let i = 0; i < n; i++) {
+      const c = PASTEL[(rnd() * PASTEL.length) | 0], m = gumM(c), k = s * [1.25, 0.8, 0.6][i] * rr(0.9, 1.1);
+      const d = new THREE.Mesh(gumGeo(), m); d.scale.setScalar(k); d.position.set([0, 0.62, -0.5][i] * s, 0, [0, 0.25, 0.3][i] * s); d.rotation.y = rr(0, 6); g.add(d);
     }
-    const wc = PASTEL[(rnd() * PASTEL.length) | 0], wrapM = new THREE.MeshPhysicalMaterial({ color: wc, roughness: 0.15, clearcoat: 1, transparent: true, opacity: 0.85 });
-    const sweet = new THREE.Mesh(new THREE.SphereGeometry(0.26 * s, 24, 16), candyM(wc)); sweet.scale.set(1.25, 1, 1); sweet.position.y = 0.28 * s; g.add(sweet);
-    for (const sx of [-1, 1]) { const tw = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.32 * s, 14), wrapM); tw.rotation.z = sx * Math.PI / 2; tw.position.set(sx * 0.44 * s, 0.28 * s, 0); g.add(tw); }
+    if (rnd() < 0.75) { const w = wrappedSweet(s * rr(0.8, 1.1)); w.position.set(-0.75 * s, 0.22 * s, 0.45 * s); w.rotation.y = rr(-0.5, 0.5); g.add(w); }   // beside the heap, not hiding it
     parent.add(shade(g)); return g;
   }
   if (TH.tree === 'crystal') {                                 // glowing orbs in the grass
@@ -558,7 +624,12 @@ export function liftBalloon(parent, w, a, b) {
   void pad;
   const s = 0.82, env = envelope(s, a, b); env.position.y = 4.9;
   const ropeM = std(0x7a5232, 0.9);
-  for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) g.add(rope(V(dx * (w / 2 - 0.25), 0.02, dz * 0.95), V(dx * 0.55, 4.9 - 1.75, dz * 0.4), 0.03, ropeM));
+  // the ropes end ON the balloon (user 2026-11-24 "열기구 풍선과 선이 붙어 있지 않아 선이 떠있어서"): they used to stop in the
+  // air beside the narrow bottom tip. Now they meet a load ring at the envelope's mouth, where its radius is rA
+  const yA = -1.3 * s, prof = env.geometry.parameters.points;
+  let rA = 0.3; for (let i = 1; i < prof.length; i++) if (prof[i - 1].y <= yA && prof[i].y >= yA) { const k = (yA - prof[i - 1].y) / (prof[i].y - prof[i - 1].y); rA = prof[i - 1].x + (prof[i].x - prof[i - 1].x) * k; break; }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(rA * 0.98, 0.06, 8, 32), std(0xc98a3a, 0.5)); ring.rotation.x = Math.PI / 2; ring.position.y = 4.9 + yA; g.add(ring);
+  for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const n = Math.SQRT1_2; g.add(rope(V(dx * (w / 2 - 0.25), 0.02, dz * 0.95), V(dx * rA * n, 4.9 + yA, dz * rA * n), 0.03, ropeM)); }
   g.add(env);
   parent.add(shade(g, true, true));
   return g;

@@ -287,11 +287,18 @@ function prop(g, x, z, theme, side) {
     else if (k < 0.92) E.bush(g, x, z, rr(0.9, 1.2));
     else rock(g, x, z, 0xb8b2a8);
   } else if (theme === 'candy') {
-    if (k < 0.3) E.candyTree(g, x, z, rr(0.9, 1.2), 0);
-    else if (k < 0.5) cake(g, x, z, rr(0.8, 1.1));
-    else if (k < 0.68) { const c = new THREE.Group(); c.position.set(x, 0, z); E.cupcake(c, rr(1.0, 1.4)); g.add(shade(c)); }
-    else if (k < 0.82) candyCane(g, x, z, rr(1, 1.5), side);
-    else E.bush(g, x, z, rr(1, 1.3));
+    // sizes vary a lot within a kind (user 2026-11-24 "종류가 같은건 크기가 너무 다 같아"), and baked things join the sweets
+    // ("도너츠나 좀 다양한 빵도"): donuts, croissants, macarons, cookies
+    const at = f => { const c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = rr(0, 6); f(c); g.add(shade(c)); };
+    if (k < 0.18) E.candyTree(g, x, z, rr(0.7, 1.4), 0);
+    else if (k < 0.3) cake(g, x, z, rr(0.6, 1.3));
+    else if (k < 0.42) at(c => E.cupcake(c, rr(0.7, 1.6)));
+    else if (k < 0.52) candyCane(g, x, z, rr(0.8, 1.7), side);
+    else if (k < 0.62) at(c => E.donutFlat(c, rr(0.7, 1.4)));
+    else if (k < 0.7) at(c => E.croissant(c, rr(0.8, 1.4)));
+    else if (k < 0.78) at(c => E.macarons(c, rr(0.7, 1.2)));
+    else if (k < 0.86) at(c => E.cookie(c, rr(0.7, 1.3)));
+    else E.bush(g, x, z, rr(0.8, 1.5));
   } else if (theme === 'snow') {
     if (k < 0.28) pine(g, x, z, rr(0.9, 1.4));
     else if (k < 0.48) roundTree(g, x, z, rr(0.85, 1.25));
@@ -627,6 +634,14 @@ function fieldY(x, z) {
   const lx = Math.abs(x) - GROUND_W / 2, rise = Math.min(1, Math.max(0, (lx - 6) / 18));
   return FIELD_Y + rise * (1.4 * Math.sin(z * 0.11 + lx * 0.07) + 1.1 * Math.sin(z * 0.05 - lx * 0.13) + 0.6 * Math.sin(lx * 0.31 + z * 0.19) + 1.2);
 }
+/** a flat water surface laid ON the rolling field (each vertex lifted to the field + lift): a flat plane crossed the
+ *  field's hills, and where the two were nearly level they fought and flickered at the sides as you ran (user 2026-11-24
+ *  "양옆에 깜박거리는것들이 있는데..버그야?"). geo is in the XZ plane, centred; (x0, y0, z0) where it is placed. */
+function drape(geo, x0, y0, z0, lift = 0.12) {
+  const p = geo.getAttribute('position');
+  for (let i = 0; i < p.count; i++) p.setY(i, fieldY(x0 + p.getX(i), z0 + p.getZ(i)) - y0 + lift);
+  geo.computeVertexNormals(); return geo;
+}
 const onField = (parent, x, z) => { const g = new THREE.Group(); g.position.set(x, fieldY(x, z) - 0.05, z); parent.add(g); return g; };
 
 // animal friends and little set pieces (critters.js) at the near edge of the fields, alternating sides, facing the course
@@ -687,15 +702,21 @@ export function backdrop(parent, theme, dEnd) {
     waterfall(parent, far(15), fieldY(15, -38) - 0.2, -38, (rnd() * 3) | 0); waterfall(parent, -16, fieldY(16, -84) - 0.2, -84, (rnd() * 3) | 0);
   } else if (theme === 'candy') {
     // the chocolate river runs along the far field; chocolate hills, giant sweets and gumdrops stand on the frosting
-    const river = new THREE.Mesh(new THREE.PlaneGeometry(9, dEnd + 120), gloss(0x5a2e1a, { roughness: 0.18, clearcoat: 1 }));
-    river.rotation.x = -Math.PI / 2; river.position.set(-19, FIELD_Y + 0.06, -dEnd / 2 + 20); river.name = 'river'; parent.add(river);
+    const rz = -dEnd / 2 + 20, rg = new THREE.PlaneGeometry(9, dEnd + 120, 12, Math.round((dEnd + 120) / 1.5)).rotateX(-Math.PI / 2);
+    const river = new THREE.Mesh(drape(rg, -19, 0, rz), gloss(0x5a2e1a, { roughness: 0.18, clearcoat: 0.5, clearcoatRoughness: 0.2 }));
+    river.position.set(-19, 0, rz); river.name = 'river'; parent.add(river);
     for (const z of zs) for (const side of SIDES()) {
       const x = side * (side < 0 ? rr(25, 34) : rr(12, 22)); if (busy(x, z)) continue; const g = onField(parent, x, z), k = rnd();
-      if (k < 0.3) chocHill(g, rr(-2, 2), 0, rr(0.9, 1.4));
-      else if (k < 0.5) { const c = new THREE.Group(); E.lollipop(c, rr(2.4, 3.2)); g.add(shade(c)); }
-      else if (k < 0.68) { const c = new THREE.Group(); E.cupcake(c, rr(2.2, 3)); g.add(shade(c)); }
-      else if (k < 0.82) candyCane(g, 0, 0, rr(2.2, 3), side);
-      else E.bush(g, 0, 0, rr(2, 2.8));                                          // a heap of gumdrops
+      const at = f => { const c = new THREE.Group(); c.rotation.y = rr(0, 6); f(c); g.add(shade(c)); };   // (sizes vary widely)
+      if (k < 0.2) chocHill(g, rr(-2, 2), 0, rr(0.7, 1.6));
+      else if (k < 0.33) { const c = new THREE.Group(); E.lollipop(c, rr(1.5, 3.6)); g.add(shade(c)); }
+      else if (k < 0.46) at(c => E.cupcake(c, rr(1.4, 3.4)));
+      else if (k < 0.56) candyCane(g, 0, 0, rr(1.4, 3.4), side);
+      else if (k < 0.66) at(c => { const s1 = rr(1.4, 2.6); E.donutFlat(c, s1); if (rnd() < 0.5) { const d2 = new THREE.Group(); d2.position.y = 0.5 * s1; d2.rotation.y = rr(0, 6); E.donutFlat(d2, s1 * rr(0.75, 0.9)); c.add(d2); } });   // sometimes two stacked
+      else if (k < 0.74) at(c => E.croissant(c, rr(1.6, 2.8)));
+      else if (k < 0.82) at(c => E.macarons(c, rr(1.3, 2.3)));
+      else if (k < 0.9) at(c => E.cookie(c, rr(1.4, 2.6)));
+      else E.bush(g, 0, 0, rr(1.4, 3.2));                                        // a heap of gumdrops
     }
     if (!SIDE) for (const z of zs.filter((_, i) => i % 2)) { const x = rr(-16, -12); if (busy(x, z)) continue; const g = onField(parent, x, z); E.bush(g, 0, 0, rr(1.4, 1.8)); }   // gumdrops by the river
   } else if (theme === 'snow') {
@@ -747,7 +768,7 @@ function pyramid(parent, x, z, s) {
 }
 function oasis(parent, x, y, z) {
   const g = new THREE.Group(); g.position.set(x, y, z);
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(4.5, 40), gloss(0x3ec6e8, { roughness: 0.1 })); pool.rotation.x = -Math.PI / 2; pool.scale.y = 0.7; g.add(pool);
+  const pool = new THREE.Mesh(drape(new THREE.CircleGeometry(4.5, 48, 0, Math.PI * 2).rotateX(-Math.PI / 2).scale(1, 1, 0.7), x, y, z, 0.1), gloss(0x3ec6e8, { roughness: 0.1 })); g.add(pool);
   for (let i = 0; i < 4; i++) { const lp = new THREE.Mesh(new THREE.CircleGeometry(0.45, 16, 0.3, Math.PI * 1.8), std(0x5fc96a)); lp.rotation.x = -Math.PI / 2; lp.position.set(rr(-3, 3), 0.02, rr(-2, 2)); g.add(lp); }
   for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; rock(g, Math.cos(a) * 4.7, Math.sin(a) * 3.3, 0xc68650); }
   palm(g, -4, -2.5, 1.6); palm(g, 3.5, -3, 1.4); palm(g, 4.6, 1.5, 1.2);
