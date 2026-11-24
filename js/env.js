@@ -429,15 +429,35 @@ export function tree(parent, x, z, s = 1, y = 0) {
   if (TH.tree === 'candy') return candyTree(parent, x, z, s, y);
   if (TH.tree === 'crystal') return crystalTree(parent, x, z, s, y);
   const g = new THREE.Group(); g.position.set(x, y, z);
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.18 * s, 1.0 * s, 10), std(0x8a5a30, 0.85));
-  trunk.position.y = 0.5 * s;
-  // the canopy shaded in its vertex colours: darker underneath, sunlit on top (the soft look of the reference renders)
-  const base = C(rnd() < 0.5 ? 0x45b13c : 0x5fc94a), dark = base.clone().multiplyScalar(0.62), light = base.clone().lerp(C(0xd8f27a), 0.35);
+  // several kinds, not one round tree everywhere (user 2026-11-24 "첫번째 맵에 나무들도 모양이 좀 다양하게"): 0 the round
+  // tree · 1 a tall slim poplar · 2 a cloud tree (three puffs on a forked trunk) · 3 an apple tree · 4 a birch (white trunk,
+  // light leaves) · 5 a green pine. The canopy is shaded in its vertex colours: darker underneath, sunlit on top.
+  const kind = (rnd() * 6) | 0;
+  const greens = [0x45b13c, 0x5fc94a, 0x3e9f48, 0x6fd04e], gcol = kind === 4 ? 0x86d65a : kind === 5 ? 0x2f9a4e : greens[(rnd() * greens.length) | 0];
+  const base = C(gcol), dark = base.clone().multiplyScalar(0.62), light = base.clone().lerp(C(0xd8f27a), 0.35);
   const leaf = treeLeafM ||= std(0xffffff, 0.72, { vertexColors: true });
-  const canopy = r => colorByY(blob(r), -r, r, [[0, dark], [0.45, base], [1, light]]);
-  const top = new THREE.Mesh(canopy(0.82 * s), leaf); top.position.y = 1.5 * s;
-  g.add(trunk, top);
-  if (rnd() < 0.55) { const t2 = new THREE.Mesh(canopy(0.52 * s), leaf); t2.position.set(0.5 * s, 1.15 * s, 0.15 * s); g.add(t2); }
+  const canopy = (r, sy = 1) => { const geo = colorByY(blob(r), -r, r, [[0, dark], [0.45, base], [1, light]]); geo.scale(1, sy, 1); return geo; };
+  const trunkM = kind === 4 ? std(0xf2ede4, 0.7) : std(0x8a5a30, 0.85);
+  const trunk = (h, r0 = 0.12, r1 = 0.18) => { const t = new THREE.Mesh(new THREE.CylinderGeometry(r0 * s, r1 * s, h * s, 10), trunkM); t.position.y = h * s / 2; g.add(t); return t; };
+  const puff = (r, x0, y0, z0, sy) => { const m = new THREE.Mesh(canopy(r * s, sy), leaf); m.position.set(x0 * s, y0 * s, z0 * s); g.add(m); return m; };
+  if (kind === 0) { trunk(1.0); puff(0.82, 0, 1.5, 0); if (rnd() < 0.55) puff(0.52, 0.5, 1.15, 0.15); }
+  else if (kind === 1) { trunk(1.0, 0.1, 0.15); puff(0.55, 0, 2.0, 0, 2.1); }
+  else if (kind === 2) {
+    trunk(1.1); for (const sx of [-1, 1]) { const br = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * s, 0.1 * s, 0.8 * s, 8), trunkM); br.position.set(sx * 0.28 * s, 1.25 * s, 0); br.rotation.z = -sx * 0.6; g.add(br); }
+    puff(0.6, -0.6, 1.75, 0, 0.85); puff(0.62, 0.62, 1.8, 0.05, 0.85); puff(0.7, 0, 2.25, -0.05, 0.9);
+  } else if (kind === 3) {
+    trunk(1.0, 0.13, 0.2); const c = puff(0.85, 0, 1.55, 0, 0.92);
+    const apple = std(0xff4a4a, 0.4);
+    for (let i = 0; i < 9; i++) { const a = rr(0, 6.28), e = rr(-0.5, 0.75), R = 0.84 * s; const ap = new THREE.Mesh(new THREE.SphereGeometry(0.085 * s, 10, 8), apple); ap.position.set(Math.cos(a) * Math.cos(e) * R, 1.55 * s + Math.sin(e) * R * 0.92, Math.sin(a) * Math.cos(e) * R); g.add(ap); }
+    void c;
+  } else if (kind === 4) {
+    const t = trunk(1.5, 0.09, 0.13);
+    const mark = std(0x3a332c, 0.8); for (let i = 0; i < 5; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.1 * s, 0.03 * s, 0.02 * s), mark); const a = rr(0, 6.28); m.position.set(Math.cos(a) * 0.105 * s, rr(0.25, 1.35) * s, Math.sin(a) * 0.105 * s); m.rotation.y = -a; g.add(m); }
+    void t; puff(0.6, 0, 1.75, 0, 1.15); puff(0.42, 0.35, 2.3, 0.05);
+  } else {
+    trunk(0.6, 0.12, 0.16);
+    [[0.8, 0.9], [0.62, 1.45], [0.42, 1.95]].forEach(([r, y0]) => { const cone = new THREE.Mesh(colorByY(new THREE.ConeGeometry(r * s, 0.95 * s, 24), -0.48 * s, 0.48 * s, [[0, dark], [0.5, base], [1, light]]), leaf); cone.position.y = y0 * s; g.add(cone); });
+  }
   parent.add(shade(g));
   return g;
 }

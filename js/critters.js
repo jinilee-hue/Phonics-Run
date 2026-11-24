@@ -25,6 +25,9 @@ function eyes(h, y, z, sep, r = 0.05, cheeks = true) {
   }
 }
 const cap = (r, len, m, x, y, z, rx = 0, rz = 0) => { const o = new THREE.Mesh(once('cap' + r + len, () => new THREE.CapsuleGeometry(r, len, 4, 10)), m); o.position.set(x, y, z); o.rotation.set(rx, 0, rz); return o; };
+/** a capsule from p0 to p1 (a limb that can point any way) */
+const limb = (p0, p1, r, m) => { const d = p1.clone().sub(p0), o = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.01, d.length()), 6, 12), m);
+  o.position.copy(p0).add(p1).multiplyScalar(0.5); o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); return o; };
 const shadeAll = g => { g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return g; };
 
 // ---------------------------------------------------------------- forest
@@ -191,7 +194,10 @@ export function polarBear() {
     b.add(ball(0.17, 0.15, 0.27, fur, sx * 0.26, 0.15, 0.24));                                 // hind leg, forward
     b.add(ball(0.1, 0.11, 0.035, pad, sx * 0.26, 0.16, 0.5, 12));                              // sole
     for (const tx of [-0.07, 0, 0.07]) b.add(ball(0.03, 0.03, 0.02, pad, sx * 0.26 + tx, 0.29, 0.47, 8));   // toe pads
-    b.add(cap(0.125, 0.22, fur, sx * 0.34, 0.5, 0.22, 0.35, sx * 0.28));                     // arm, shoulder → paw (chunky)
+    // the arm lies down the front of the round body, from the shoulder to a round paw resting on the tummy just above
+    // the leg — both ends sit on the body's surface, so it reads as an arm, not a lump (user 2026-11-24 "곰돌이 팔은 아직 좀 어색")
+    b.add(limb(new THREE.Vector3(sx * 0.4, 0.8, 0.17), new THREE.Vector3(sx * 0.25, 0.4, 0.42), 0.125, fur));
+    b.add(ball(0.125, 0.115, 0.12, fur, sx * 0.24, 0.37, 0.45));                               // paw
   }
   const h = new THREE.Group(); h.position.set(0, 1.12, 0.12); b.add(h);
   h.add(ball(0.36, 0.32, 0.32, fur));

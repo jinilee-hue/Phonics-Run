@@ -376,7 +376,12 @@ function chocHill(g, x, z, s) {
   const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, 0.75), cream); cap.scale.set(3.55 * s, 2.65 * s, 3.25 * s); cap.position.set(x, 0, z); g.add(cap);
 }
 // ---- snow
-const pineM = () => once('pineM', () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 }));
+// snow on the trees glows a little from inside so its shaded rim stays light (a grey band ran under every snow cap — user
+// 2026-11-24 "나무에 회색은 그림자야? 너무 진한거 같아"); only near-white vertex colours get it, the greens stay as they are
+const pineM = () => once('pineM', () => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 });
+  m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',
+    '#include <emissivemap_fragment>\n  { float w = smoothstep(0.82, 0.97, min(vColor.r, min(vColor.g, vColor.b))); totalEmissiveRadiance += vec3(0.86, 0.9, 1.0) * 0.42 * w; }'); };
+  m.customProgramCacheKey = () => 'pineSnowGlow'; return m; });
 function pineGeo(v) {
   return once('pine' + v, () => {
     const parts = [], green = [0x2f9160, 0x277d52, 0x35996a, 0x2a8558][v], white = 0xf8fbff, lump = sphG(10);
@@ -384,12 +389,14 @@ function pineGeo(v) {
     const tiers = [[1.0, 0.42, 0.9], [0.8, 1.0, 0.82], [0.6, 1.52, 0.72], [0.38, 1.98, 0.62]];
     tiers.forEach(([r, y, h], i) => {
       const V2 = a => a.map(([q, w]) => new THREE.Vector2(q, w));
-      parts.push([new THREE.LatheGeometry(V2([[0, h], [r * 0.28, h * 0.72], [r * 0.7, h * 0.28], [r, 0.04], [r * 0.94, -0.05], [r * 0.5, -0.02], [0, 0.02]]), 12), green, MX(0, y, 0)]);
-      const cap = new THREE.LatheGeometry(V2([[0, h + 0.07], [r * 0.3, h * 0.74 + 0.06], [r * 0.6, h * 0.4 + 0.06], [r * 0.8, h * 0.26 + 0.04], [r * 0.84, h * 0.2], [r * 0.55, h * 0.3], [0, h * 0.5]]), 21);
+      // rounder (user 2026-11-24 "눈쌓인게 좀 어색해. 다 각져서"): 28 sides for the green tiers, 56 for the snow caps
+      parts.push([new THREE.LatheGeometry(V2([[0, h], [r * 0.28, h * 0.72], [r * 0.7, h * 0.28], [r, 0.04], [r * 0.94, -0.05], [r * 0.5, -0.02], [0, 0.02]]), 28), green, MX(0, y, 0)]);
+      const cap = new THREE.LatheGeometry(V2([[0, h + 0.07], [r * 0.3, h * 0.74 + 0.06], [r * 0.6, h * 0.4 + 0.06], [r * 0.78, h * 0.27 + 0.04], [r * 0.84, h * 0.21], [r * 0.81, h * 0.19], [r * 0.55, h * 0.29], [0, h * 0.5]]), 56);
       const cp = cap.getAttribute('position'), ph = rr(0, 6);
       for (let k = 0; k < cp.count; k++) {                                   // the rim droops in soft drips
         const x = cp.getX(k), z = cp.getZ(k), rad = Math.hypot(x, z) / r;
-        if (rad > 0.55) { const a = Math.atan2(z, x); cp.setY(k, cp.getY(k) - (rad - 0.55) / 0.3 * h * 0.14 * Math.max(0, Math.sin(a * 7 + ph))); }
+        // soft round scallops (a smooth bump per drip) instead of sharp zigzags
+        if (rad > 0.55) { const a = Math.atan2(z, x), b = 0.5 + 0.5 * Math.sin(a * 7 + ph); cp.setY(k, cp.getY(k) - (rad - 0.55) / 0.3 * h * 0.13 * b * b); }
       }
       cap.computeVertexNormals();
       parts.push([cap, white, MX(0, y, 0)]);
@@ -401,7 +408,7 @@ function pineGeo(v) {
 export function pine(g, x, z, s) {
   // not all alike (user 2026-11-24 "나무 모양도 너무 다 일관되잖아"): some slim and tall, some short and full
   const t = new THREE.Mesh(pineGeo((rnd() * 4) | 0), pineM()), wd = rr(0.78, 1.12); t.position.set(x, 0, z); t.scale.set(s * wd, s * rr(0.88, 1.32), s * wd); t.rotation.y = rr(0, 6);
-  t.castShadow = t.receiveShadow = true; g.add(t); return t;
+  t.castShadow = true; t.receiveShadow = false; g.add(t); return t;   // (its own tiers drew dark grey bands on the snow below them)
 }
 /** a round snowy tree (user 2026-11-24 "둥근 나무도 있을거고"): a trunk under a cloud of round green balls, each with a
  *  pillow of snow on top. Three shapes; greens a little lighter than the pines' */
@@ -421,7 +428,7 @@ function roundTreeGeo(v) {
 }
 function roundTree(g, x, z, s) {
   const t = new THREE.Mesh(roundTreeGeo((rnd() * 3) | 0), pineM()); t.position.set(x, 0, z); t.scale.set(s, s * rr(0.9, 1.15), s); t.rotation.y = rr(0, 6);
-  t.castShadow = t.receiveShadow = true; g.add(t); return t;
+  t.castShadow = true; t.receiveShadow = false; g.add(t); return t;
 }
 /** a snow-covered shrub (round green clumps under thick snow) */
 function snowBush(g, x, z, s) {
@@ -448,10 +455,15 @@ function snowman(g, x, z, s, side) {
   }
   g.add(shade(m));
 }
-function cabin(g, x, z, s) {
+export function cabin(g, x, z, s) {
   const h = new THREE.Group(); h.position.set(x, 0, z); h.rotation.y = rr(-0.4, 0.4);
   const logTex = once('logs', () => { const t = canvasTex(64, 64, c => { for (let i = 0; i < 4; i++) { const gr = c.createLinearGradient(0, i * 16, 0, i * 16 + 16); gr.addColorStop(0, '#b0743c'); gr.addColorStop(0.5, '#8a5428'); gr.addColorStop(1, '#5e3616'); c.fillStyle = gr; c.fillRect(0, i * 16, 64, 16); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 3); return t; });
   const body = new THREE.Mesh(new RoundedBoxGeometry(2.6 * s, 1.8 * s, 2.2 * s, 2, 0.12), new THREE.MeshStandardMaterial({ map: logTex, roughness: 0.85 })); body.position.y = 0.9 * s; h.add(body);
+  // the gables: a log-coloured prism fills the space under the roof (it was open — the sky showed through under the
+  // roof, user 2026-11-24 "지붕밑에 벽이 없어서 뒤에 배경이 뚫려서 보여")
+  const gs = new THREE.Shape(); gs.moveTo(-1.26 * s, 1.76 * s); gs.lineTo(1.26 * s, 1.76 * s); gs.lineTo(0, 2.56 * s); gs.closePath();
+  const gable = new THREE.Mesh(new THREE.ExtrudeGeometry(gs, { depth: 2.12 * s, bevelEnabled: false }), std(0x8a5428, 0.85)); gable.position.z = -1.06 * s; h.add(gable);
+  for (const sz of [-1, 1]) { const vent = new THREE.Mesh(new THREE.CircleGeometry(0.16 * s, 18), std(0x3a2414, 0.9)); vent.position.set(0, 2.1 * s, sz * 1.065 * s); if (sz < 0) vent.rotation.y = Math.PI; h.add(vent); }   // a little round attic window
   const snow = std(0xffffff, 0.9);
   for (const sx of [-1, 1]) { const roof = new THREE.Mesh(new RoundedBoxGeometry(1.75 * s, 0.3 * s, 2.6 * s, 3, 0.12), snow); roof.position.set(sx * 0.68 * s, 2.25 * s, 0); roof.rotation.z = -sx * 0.62; h.add(roof); }
   const chim = new THREE.Mesh(new RoundedBoxGeometry(0.4 * s, 0.9 * s, 0.4 * s, 2, 0.06), std(0xa8533a)); chim.position.set(0.7 * s, 2.7 * s, -0.4 * s); h.add(chim);
