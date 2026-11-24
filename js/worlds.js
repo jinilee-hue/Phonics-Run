@@ -273,8 +273,9 @@ function rails(g, len, theme) {
 function sideProps(g, len, theme) {
   for (const side of SIDES()) {
     for (let z = -len / 2 + rr(1, 2.5); z < len / 2 - 1; z += rr(3.2, 5.2)) {
-      const x = side * rr(PATH_W / 2 + 1.4, GROUND_W / 2 - 1.2);
+      const x = side * rr(PATH_W / 2 + 1.4, GROUND_W / 2 - 1.2), n0 = g.children.length;
       prop(g, x, z, theme, side);
+      for (let i = n0; i < g.children.length; i++) g.children[i].userData.clear = 2.0;   // hidden when the camera comes this close (updateWorld)
     }
   }
 }
@@ -1051,6 +1052,13 @@ export function updateWorld(dt, T, root, camPos) {
     a.needsUpdate = true;
     snowfall.position.set(camPos.x, camPos.y - 5, camPos.z - 12);
   }
+  // props beside the path that the camera passes through or right by (a pine cut open by the lens looked broken, user
+  // 2026-11-24 "나무 깨지는 그래픽이 있는데"): hidden while the camera is within their radius, measured across the ground
+  if (root && !root.userData.clearList) {
+    const c = root.userData.clearList = []; root.updateMatrixWorld(true);
+    root.traverse(o => { if (o !== root && typeof o.userData.clear === 'number') c.push({ o, p: o.getWorldPosition(new THREE.Vector3()), r: o.userData.clear }); });
+  }
+  for (const k of root?.userData.clearList || []) k.o.visible = Math.hypot(camPos.x - k.p.x, camPos.z - k.p.z) > k.r;
   if (root && !root.userData.anim) {                           // (collected once per level, not searched every frame)
     const MOVE = new Set(['falls', 'foam', 'asteroid', 'smoke', 'clouds', 'planet', 'aurora', 'lolly', 'cotton']);
     const a = root.userData.anim = []; root.traverse(o => { if (MOVE.has(o.name) || o.userData.cr) a.push(o); });
