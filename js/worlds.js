@@ -678,7 +678,10 @@ const onField = (parent, x, z) => { const g = new THREE.Group(); g.position.set(
 // and the camera; birds / butterflies / saucers circle above. Returns the spots taken so the scenery keeps clear of them.
 const FRIENDS = {
   forest: { ground: [[() => C.bunny(), 1.5, 2], [() => C.squirrel(), 1.5, 1], [() => C.pond(), 1.15, 0, 2.2]], fly: [() => C.bird(pick([0x5aa8ff, 0xff8a5a, 0xffd447])), 1.6, 3], flutter: [() => C.butterfly(pick([0xff8cc6, 0x7fd8ff, 0xffd447]), pick([0xffffff, 0xffd447, 0xc59bff])), 1.8, 5] },
-  candy: { ground: [[() => C.gummyBear(pick([0xff5f7e, 0x5fd08a, 0xffb43a, 0xa77cff, 0x4fb6ff])), 1.4, 3], [() => C.gumballMachine(), 1.25, 0, 1.2]], flutter: [() => C.butterfly(pick([0xff8cbf, 0xae8cff, 0x63d9ad]), pick([0xffd447, 0xffffff, 0x6fbcff])), 1.8, 5] },
+  // gummy bears: just a blue and a purple side by side (user 2026-11-24 "갯수가 너무 많아 파란색 보라색 나란히 있는거 두개만"). The
+  // crowd of 4 is still made and only the middle two are kept, so the seeded random draws — and the rest of the candy
+  // scenery — stay exactly where they were
+  candy: { ground: [[i => { const c = pick([0xff5f7e, 0x5fd08a, 0xffb43a, 0xa77cff, 0x4fb6ff]); return C.gummyBear(i === 1 ? 0x4fb6ff : i === 2 ? 0xa77cff : c); }, 1.4, 3, 0, [1, 2]], [() => C.gumballMachine(), 1.25, 0, 1.2]], flutter: [() => C.butterfly(pick([0xff8cbf, 0xae8cff, 0x63d9ad]), pick([0xffd447, 0xffffff, 0x6fbcff])), 1.8, 5] },
   snow: { ground: [[() => C.penguin(pick([0xff4f6d, 0x4f8fff, 0xffc83a, 0x3fcf9c])), 1.5, 3], [() => C.polarBear(), 1.45, 1], [() => C.igloo(), 1.0, 0, 2.4]] },
   desert: { ground: [[() => C.camel(), 1.3, 1, 1.2], [() => C.meerkats(3), 1.45, 0, 1.3]] },
   space: { rock: [[() => C.alien(pick([0x7be86a, 0xc59bff, 0x6fd8ff])), 1.5, 2], [() => C.rocket(), 1.0, 0, 1]], fly: [() => C.ufo(), 1.6, 3] },
@@ -688,18 +691,18 @@ function friends(parent, theme, dEnd) {
   const faceYaw = side => (SIDE ? Math.PI / 2 + rr(-0.35, 0.35) : -side * rr(0.45, 0.85));   // toward the course and the camera
   let n = 0;
   for (let d = 4; d < dEnd + 6; d += rr(12, 17), n++) {
-    const side = SIDE ? -1 : (n % 2 ? 1 : -1), list = F.ground || F.rock, [make, s, crowd = 0, big = 0] = list[n % list.length];
+    const side = SIDE ? -1 : (n % 2 ? 1 : -1), list = F.ground || F.rock, [make, s, crowd = 0, big = 0, keep] = list[n % list.length];
     const x = side * (rr(9.8, 11.2) + big), z = -d;
     let g;
     if (F.rock) { g = C.spaceRock(1.3 + 0.8 * crowd * 0.5 + big * 0.4); g.position.set(x + side * 1.6, rr(-0.6, 1.0), z); g.userData.cr = { k: 'float', y0: g.position.y, yaw: 0, w: 1 }; parent.add(g); }
     else g = onField(parent, x, z);
     const yaw = faceYaw(side);
     for (let i = 0; i <= crowd; i++) {                                                     // a little crowd of friends
-      const o = make(), off = crowd ? (i - crowd / 2) * 1.25 : 0;
+      const o = make(i), off = crowd ? (i - crowd / 2) * 1.25 : 0;
       o.scale.setScalar(s * (i && crowd ? rr(0.8, 0.95) : 1)); o.rotation.y = yaw + rr(-0.25, 0.25);
       o.position.set(Math.cos(yaw) * off, 0, -Math.sin(yaw) * off + (crowd ? rr(-0.4, 0.4) : 0));
       if (crowd && !F.rock) o.position.y = fieldY(x + o.position.x, z + o.position.z) - fieldY(x, z);
-      g.add(o);
+      if (!keep || keep.includes(i)) g.add(o);
     }
     spots.push([g.position.x, z, 1.4 + crowd * 0.6 + big * 1.4]);
   }
@@ -716,6 +719,40 @@ function friends(parent, theme, dEnd) {
     }
   }
   return spots;
+}
+
+// ---- a livelier candy sky (user 2026-11-24 "배경이 너무 밋밋하잖아. 막대사탕들이 회전하던지..핑크 구름이 천천히 떠다니던지"):
+// the giant lollipops turn to face the camera and their swirls spin slowly (updateWorld 'lolly'), and cotton-candy clouds —
+// pink, lilac and pale puffs — float above the far hills, drifting slowly along the course ('cotton'). Neither draws from the
+// seeded random stream, so the rest of the candy scenery stays exactly where it was.
+let lollyN = 0;
+function spinLolly(c) {
+  c.rotation.y = SIDE ? Math.PI / 2 : 0;                                   // the candy disc faces the camera
+  const disc = c.children.find(m => m.geometry?.type === 'LatheGeometry');
+  if (disc) { disc.name = 'lolly'; disc.userData.spin = (lollyN % 2 ? -1 : 1) * (0.45 + 0.2 * (lollyN % 3)); lollyN++; }
+}
+const COTTON = [0xffb6dc, 0xffd3ea, 0xe0c6ff, 0xffc4e1, 0xfff0f7];
+function cottonClouds(parent, dEnd) {
+  let seed = 917; const r = (a, b) => a + (b - a) * ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const geo = once('cottonG', () => new THREE.SphereGeometry(1, 20, 14));
+  const mat = once('cottonM', () => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xffd9ec, emissiveIntensity: 0.28 }));
+  const zMax = 30, zMin = -dEnd - 50; let n = 0;
+  for (let z = zMax; z > zMin; z -= r(14, 20), n++) {
+    const side = SIDE ? -1 : (n % 2 ? 1 : -1), S = r(1.6, 2.3), col = new THREE.Color(COTTON[n % COTTON.length]), top = col.clone().lerp(new THREE.Color(0xffffff), 0.35);
+    const g = new THREE.Group(), k = 6 + (n % 3), im = new THREE.InstancedMesh(geo, mat, k + 1);
+    for (let i = 0; i < k; i++) {                                           // a row of round puffs, biggest in the middle
+      const a = i / (k - 1) - 0.5, rad = S * (0.55 + 0.5 * Math.cos(a * Math.PI)) * r(0.85, 1.1);
+      im.setMatrixAt(i, new THREE.Matrix4().compose(V(0, rad * 0.35 + r(-0.1, 0.25) * S, a * S * 3.2), new THREE.Quaternion(), V(rad * 0.9, rad * 0.82, rad)));
+      im.setColorAt(i, i % 2 ? top : col);
+    }
+    im.setMatrixAt(k, new THREE.Matrix4().compose(V(0, 0, 0), new THREE.Quaternion(), V(S * 1.1, S * 0.42, S * 1.9))); im.setColorAt(k, col);   // the flat base
+    im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true;
+    g.add(im);
+    if (!SIDE) g.rotation.y = r(-0.3, 0.3); else g.rotation.y = r(-0.2, 0.2);
+    g.position.set(SIDE ? -r(34, 48) : side * r(20, 40), SIDE ? r(6.5, 10) : r(9, 15), z);
+    g.name = 'cotton'; Object.assign(g.userData, { x0: g.position.x, y0: g.position.y, ph: r(0, 6), v: r(0.35, 0.6), zMin, zMax });
+    parent.add(g);
+  }
 }
 
 export function backdrop(parent, theme, dEnd) {
@@ -739,7 +776,7 @@ export function backdrop(parent, theme, dEnd) {
       const x = side * (side < 0 ? rr(25, 34) : rr(12, 22)); if (busy(x, z)) continue; const g = onField(parent, x, z), k = rnd();
       const at = f => { const c = new THREE.Group(); c.rotation.y = rr(0, 6); f(c); g.add(shade(c)); };   // (sizes vary widely)
       if (k < 0.2) chocHill(g, rr(-2, 2), 0, rr(0.7, 1.6));
-      else if (k < 0.33) { const c = new THREE.Group(); E.lollipop(c, rr(1.5, 3.6)); g.add(shade(c)); }
+      else if (k < 0.33) { const c = new THREE.Group(); E.lollipop(c, rr(1.5, 3.6)); spinLolly(c); g.add(shade(c)); }
       else if (k < 0.46) at(c => E.cupcake(c, rr(1.4, 3.4)));
       else if (k < 0.56) candyCane(g, 0, 0, rr(1.4, 3.4), side);
       else if (k < 0.66) at(c => { const s1 = rr(1.4, 2.6); E.donutFlat(c, s1); if (rnd() < 0.5) { const d2 = new THREE.Group(); d2.position.y = 0.5 * s1; d2.rotation.y = rr(0, 6); E.donutFlat(d2, s1 * rr(0.75, 0.9)); c.add(d2); } });   // sometimes two stacked
@@ -749,6 +786,7 @@ export function backdrop(parent, theme, dEnd) {
       else E.bush(g, 0, 0, rr(1.4, 3.2));                                        // a heap of gumdrops
     }
     if (!SIDE) for (const z of zs.filter((_, i) => i % 2)) { const x = rr(-16, -12); if (busy(x, z)) continue; const g = onField(parent, x, z); E.bush(g, 0, 0, rr(1.4, 1.8)); }   // gumdrops by the river
+    cottonClouds(parent, dEnd);
   } else if (theme === 'snow') {
     for (const z of zs) for (const side of SIDES()) {
       const x = side * rr(12, 22); if (busy(x, z)) continue; const g = onField(parent, x, z), k = rnd();
@@ -1014,7 +1052,7 @@ export function updateWorld(dt, T, root, camPos) {
     snowfall.position.set(camPos.x, camPos.y - 5, camPos.z - 12);
   }
   if (root && !root.userData.anim) {                           // (collected once per level, not searched every frame)
-    const MOVE = new Set(['falls', 'foam', 'asteroid', 'smoke', 'clouds', 'planet', 'aurora']);
+    const MOVE = new Set(['falls', 'foam', 'asteroid', 'smoke', 'clouds', 'planet', 'aurora', 'lolly', 'cotton']);
     const a = root.userData.anim = []; root.traverse(o => { if (MOVE.has(o.name) || o.userData.cr) a.push(o); });
   }
   for (const o of root?.userData.anim || []) {
@@ -1023,6 +1061,12 @@ export function updateWorld(dt, T, root, camPos) {
     else if (o.name === 'foam') { const k = 1 + 0.12 * Math.sin(T * 3.2 + o.userData.ph); o.scale.set(o.userData.s0.x * k, o.userData.s0.y * (2 - k), o.userData.s0.z * k); }
     // a little life in every sky (user 2026-11-24 "배경마다 구름이나 운석이나 이런것들 모션 조금씩 줘서 자연스럽게"):
     // asteroids tumble and float up and down · cloud banks drift sideways and breathe · planets turn · the aurora sways and glows
+    else if (o.name === 'lolly') o.rotation.y += dt * o.userData.spin;                       // the swirl turns
+    else if (o.name === 'cotton') {                                                            // drift along the course, bob, breathe
+      const u = o.userData; o.position.z -= dt * u.v; if (o.position.z < u.zMin) o.position.z += u.zMax - u.zMin;
+      if (!SIDE) o.position.x = u.x0 + Math.sin(T * 0.12 + u.ph) * 2.5;                       // seen from behind: sway sideways too
+      o.position.y = u.y0 + Math.sin(T * 0.35 + u.ph) * 0.35; const b = 1 + 0.03 * Math.sin(T * 0.5 + u.ph); o.scale.set(b, 2 - b, b);
+    }
     else if (o.name === 'asteroid') { o.rotation.x += dt * o.userData.spin; o.rotation.y += dt * o.userData.spin * 0.7; o.position.y = o.userData.y0 + Math.sin(T * 0.45 + o.userData.ph) * 0.5; }
     else if (o.name === 'clouds') { const s = o.userData.sea ? 1.6 : 3.2; o.position.x = Math.sin(T * 0.05 + o.userData.ph) * s; o.position.y = Math.sin(T * 0.13 + o.userData.ph) * (o.userData.sea ? 0.4 : 0.6); }
     else if (o.name === 'planet') { o.children[0].rotation.y += dt * o.userData.spin; o.position.y = o.userData.y0 + Math.sin(T * 0.2 + o.userData.ph) * 0.6; }

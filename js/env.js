@@ -349,7 +349,9 @@ export function lollipop(g, s) {
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.065 * s, 0.065 * s, 1.75 * s, 12), std(0xfffaf2, 0.35));
   stick.position.y = 0.88 * s; g.add(stick);
   // a domed candy disc (thicker in the middle, rounded rim) with the swirl on both faces, glossy
-  const prof = [[0, 0.17], [0.3, 0.16], [0.55, 0.12], [0.7, 0.06], [0.74, 0], [0.7, -0.06], [0.55, -0.12], [0.3, -0.16], [0, -0.17]];
+  // listed bottom → top so the faces point OUT (top → bottom turned them inward: the near face was culled and the stick
+  // showed through the candy — user 2026-11-24 screenshot)
+  const prof = [[0, -0.17], [0.3, -0.16], [0.55, -0.12], [0.7, -0.06], [0.74, 0], [0.7, 0.06], [0.55, 0.12], [0.3, 0.16], [0, 0.17]];
   const geo = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r * s, y * s)), 48);
   const p = geo.getAttribute('position'), uv = geo.getAttribute('uv');
   for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / (0.74 * s) * 0.5 + 0.5, p.getZ(i) / (0.74 * s) * 0.5 + 0.5);
