@@ -369,11 +369,13 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .say-word, .wallet b, .wallet-pill b, .coins b, .coinline b { text-shadow: 0 calc(.3 * var(--u)) 0 #d6caf6; }
 
 /* touch buttons lower and a little smaller (user 2026-11-23: "너무 복잡해 보이는데 버튼들 좀더 내려도 되지 않아?") —
-   down into the corners so they cover less of the course; SKIP sits just above the jump button */
+   down into the corners so they cover less of the course */
 .pad { left: calc(2.4 * var(--u)); bottom: calc(1.4 * var(--u)); gap: calc(1.6 * var(--u)); }
 .pad .pbtn { width: calc(13 * var(--u)); height: calc(13 * var(--u)); }
 .jbtn { right: calc(2.4 * var(--u)); bottom: calc(1.4 * var(--u)); width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
-.skip { right: calc(2.4 * var(--u)); bottom: calc(20 * var(--u)); }
+/* SKIP at the bottom centre, between the stick and the jump button (user 2026-11-24 "skip 버튼 가운데로 옮겨줘"), where the
+   other phonics games keep theirs */
+.skip { left: 50%; right: auto; translate: -50% 0; bottom: calc(3 * var(--u)); }
 
 /* result ribbons = Toy Catch's (user 2026-11-23: "리본도 깨지지 않은걸로 바꿔. 다른 파닉스 게임들 좀 참조해"): one rounded band
    with the title, swallowtails with rounded corners behind it and a dark fold under each end of the band */

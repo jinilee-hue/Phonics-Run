@@ -632,7 +632,7 @@ const onField = (parent, x, z) => { const g = new THREE.Group(); g.position.set(
 // animal friends and little set pieces (critters.js) at the near edge of the fields, alternating sides, facing the course
 // and the camera; birds / butterflies / saucers circle above. Returns the spots taken so the scenery keeps clear of them.
 const FRIENDS = {
-  forest: { ground: [[() => C.bunny(), 1.5, 2], [() => C.bunny(0xe0bf94), 1.5, 1], [() => C.pond(), 1.15, 0, 2.2]], fly: [() => C.bird(pick([0x5aa8ff, 0xff8a5a, 0xffd447])), 1.6, 3], flutter: [() => C.butterfly(pick([0xff8cc6, 0x7fd8ff, 0xffd447]), pick([0xffffff, 0xffd447, 0xc59bff])), 1.8, 5] },
+  forest: { ground: [[() => C.bunny(), 1.5, 2], [() => C.squirrel(), 1.5, 1], [() => C.pond(), 1.15, 0, 2.2]], fly: [() => C.bird(pick([0x5aa8ff, 0xff8a5a, 0xffd447])), 1.6, 3], flutter: [() => C.butterfly(pick([0xff8cc6, 0x7fd8ff, 0xffd447]), pick([0xffffff, 0xffd447, 0xc59bff])), 1.8, 5] },
   candy: { ground: [[() => C.gummyBear(pick([0xff5f7e, 0x5fd08a, 0xffb43a, 0xa77cff, 0x4fb6ff])), 1.4, 3], [() => C.gumballMachine(), 1.25, 0, 1.2]], flutter: [() => C.butterfly(pick([0xff8cbf, 0xae8cff, 0x63d9ad]), pick([0xffd447, 0xffffff, 0x6fbcff])), 1.8, 5] },
   snow: { ground: [[() => C.penguin(pick([0xff4f6d, 0x4f8fff, 0xffc83a, 0x3fcf9c])), 1.5, 3], [() => C.polarBear(), 1.45, 1], [() => C.igloo(), 1.0, 0, 2.4]] },
   desert: { ground: [[() => C.camel(), 1.3, 1, 1.2], [() => C.meerkats(3), 1.45, 0, 1.3]] },
@@ -684,7 +684,7 @@ export function backdrop(parent, theme, dEnd) {
       else if (k < 0.62) { mushroom(g, 0, 0, rr(1.6, 2.6)); mushroom(g, rr(1.4, 2.2), rr(-1, 1), rr(0.8, 1.2)); }
       else if (k < 0.8) pipe(g, 0, 0, rr(1.4, 2)); else { E.tree(g, 0, 0, rr(1.3, 1.8)); E.tree(g, rr(-2.5, -1.5), rr(-1.5, 1.5), rr(1.1, 1.5)); }
     }
-    waterfall(parent, far(15), fieldY(15, -38) - 0.2, -38); waterfall(parent, -16, fieldY(16, -84) - 0.2, -84);
+    waterfall(parent, far(15), fieldY(15, -38) - 0.2, -38, (rnd() * 3) | 0); waterfall(parent, -16, fieldY(16, -84) - 0.2, -84, (rnd() * 3) | 0);
   } else if (theme === 'candy') {
     // the chocolate river runs along the far field; chocolate hills, giant sweets and gumdrops stand on the frosting
     const river = new THREE.Mesh(new THREE.PlaneGeometry(9, dEnd + 120), gloss(0x5a2e1a, { roughness: 0.18, clearcoat: 1 }));
@@ -753,14 +753,85 @@ function oasis(parent, x, y, z) {
   palm(g, -4, -2.5, 1.6); palm(g, 3.5, -3, 1.4); palm(g, 4.6, 1.5, 1.2);
   parent.add(g);
 }
-function waterfall(parent, x, y, z) {
-  const g = new THREE.Group(); g.position.set(x, y, z);
-  const cliff = new THREE.Mesh(new RoundedBoxGeometry(6, 9, 4, 3, 0.6), std(0x8e6a48, 0.9)); cliff.position.y = 2.5; g.add(cliff);
-  const capM = std(0x6bcb4c, 0.8); const cap = new THREE.Mesh(new RoundedBoxGeometry(6.4, 0.6, 4.4, 3, 0.25), capM); cap.position.y = 7.1; g.add(cap);
-  const t = once('fall', () => { const tx = canvasTex(64, 256, c => { c.fillStyle = '#7fd4ff'; c.fillRect(0, 0, 64, 256); for (let i = 0; i < 40; i++) { c.fillStyle = 'rgba(255,255,255,.7)'; c.fillRect(Math.random() * 64, Math.random() * 256, 3, 20 + Math.random() * 40); } }); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; return tx; });
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 8.4), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.92 })); water.position.set(-0.5, 2.6, 2.05); water.name = 'falls'; g.add(water);
-  for (let i = 0; i < 6; i++) { const f = E3(rr(0.4, 0.7), 0.3, 0.4, std(0xffffff, 1, { transparent: true, opacity: 0.85 }), 10); f.position.set(-0.5 + rr(-1.2, 1.2), -1.8, 2.3 + rr(0, 0.5)); g.add(f); }
-  parent.add(shade(g, false, true));
+// ---- waterfalls (user 2026-11-24: "폭포도 아래에서 위로 가는게 아니라 위에서 아래로 떨어져야지. 폭포 모양도 좀 다양하게 정말
+// 실제 폭포처럼 바위와 질감들이 살았으면"): the water now FALLS (its streaks scroll down, updateWorld), spills over a rock lip
+// in a curve, and the cliff is a pile of craggy boulders with moss and grass on top instead of a brown box. Three shapes:
+// 0 one tall wide fall · 1 two tiers with a ledge pool half way · 2 twin narrow streams. A foaming plunge pool at the foot.
+const fallTex = () => once('fall2', () => { const t = canvasTex(128, 512, c => {
+  const gr = c.createLinearGradient(0, 0, 0, 512); gr.addColorStop(0, '#c4f1ff'); gr.addColorStop(0.5, '#7fd2f6'); gr.addColorStop(1, '#5ab8ec');
+  c.fillStyle = gr; c.fillRect(0, 0, 128, 512);
+  for (let i = 0; i < 70; i++) { c.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.5})`; c.fillRect(Math.random() * 128, Math.random() * 512, 1.5 + Math.random() * 4, 30 + Math.random() * 110); }
+  for (let i = 0; i < 24; i++) { c.fillStyle = `rgba(40,130,200,${0.15 + Math.random() * 0.2})`; c.fillRect(Math.random() * 128, Math.random() * 512, 2 + Math.random() * 4, 40 + Math.random() * 90); }
+}); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; });
+/** a craggy boulder: an icosahedron pushed about by a little noise, flat shaded (the look of the course's space rocks) */
+function boulderGeo(v) {
+  return once('boulder' + v, () => {
+    const g = new THREE.IcosahedronGeometry(1, 2), p = g.getAttribute('position'), ph = v * 2.3;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + 0.16 * Math.sin(x * 3.1 + ph) * Math.cos(y * 2.7 - ph) + 0.08 * Math.sin(z * 5 + ph * 2);
+      p.setXYZ(i, x * k, y * k * 0.85, z * k);
+    }
+    g.computeVertexNormals(); return g;
+  });
+}
+const ROCK_TINTS = [0x8d8478, 0x9b9184, 0x7d766c, 0xa69c8c, 0x857b6e];
+function boulder(g, x, y, z, sx, sy, sz, tint) {
+  const m = new THREE.Mesh(boulderGeo((rnd() * 4) | 0), once('boulderM' + tint, () => std(tint, 0.92, { flatShading: true })));
+  m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.set(rr(-0.3, 0.3), rr(0, 6), rr(-0.3, 0.3)); g.add(m); return m;
+}
+/** a sheet of falling water w wide, h tall, its top spilling out `out` from the rock before it drops (top at y = 0) */
+function fallSheet(g, x, y, z, w, h, out, speed) {
+  const geo = new THREE.PlaneGeometry(w, h, 6, 28), p = geo.getAttribute('position');
+  for (let i = 0; i < p.count; i++) {
+    const t = (h / 2 - p.getY(i)) / h;                                     // 0 at the lip, 1 at the foot
+    p.setXYZ(i, p.getX(i) * (1 + 0.18 * t), p.getY(i) - h / 2, out * Math.sqrt(Math.min(1, t * 5)) + Math.sin(p.getX(i) * 3 + t * 6) * 0.05);
+  }
+  geo.computeVertexNormals();
+  const map = fallTex().clone(); map.needsUpdate = true; map.repeat.set(1, h / 6);
+  const s = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+  s.position.set(x, y, z); s.name = 'falls'; s.userData.speed = speed; g.add(s);
+  // the lip: the water bulging over the edge, lighter
+  const lip = E3(w * 0.55, 0.16, 0.3, once('lipW', () => std(0xd6f6ff, 0.2, { transparent: true, opacity: 0.85 })), 14); lip.position.set(x, y + 0.02, z + 0.12); g.add(lip);
+  return s;
+}
+/** foam where water lands: white puffs that swell and settle (updateWorld 'foam') and a pale ring on the pool */
+function foam(g, x, y, z, w) {
+  const m = once('foamM', () => std(0xffffff, 1, { transparent: true, opacity: 0.9 }));
+  for (let i = 0; i < 7; i++) { const f = E3(rr(0.35, 0.6) * w / 2.4, rr(0.22, 0.32), rr(0.3, 0.45), m, 12); f.position.set(x + rr(-0.55, 0.55) * w, y + 0.08, z + rr(-0.1, 0.4)); f.name = 'foam'; f.userData.ph = rr(0, 6); f.userData.s0 = f.scale.clone(); g.add(f); }
+  const ring = new THREE.Mesh(new THREE.RingGeometry(w * 0.55, w * 0.75, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.set(x, y + 0.04, z + 0.2); g.add(ring);
+}
+function waterfall(parent, x, y, z, v = 0) {
+  const g = new THREE.Group(); g.position.set(x, y, z); if (SIDE) g.rotation.y = Math.PI / 2;
+  const H = v === 1 ? 9 : rr(8, 9.5), W = v === 0 ? 2.6 : v === 1 ? 2 : 1.1;
+  // the dark wet rock behind the water, then boulders piled up either side and along the top
+  const back = new THREE.Mesh(new RoundedBoxGeometry(v === 2 ? 4.4 : 3.6, H, 1.6, 3, 0.5), std(0x5d564e, 0.6)); back.position.set(0, H / 2 - 1.2, 0.6); g.add(back);
+  for (const sx of [-1, 1]) for (let yy = -0.6; yy < H - 1.4; yy += rr(1.3, 1.9)) {
+    const r = rr(1.1, 1.7); boulder(g, sx * (W / 2 + 0.9 + rr(0, 0.6) + (v === 2 ? 0.6 : 0)), yy + r * 0.5, rr(0.2, 1.2), r, r * rr(0.7, 0.95), r * rr(0.8, 1.1), pick(ROCK_TINTS));
+  }
+  for (let xx = -3.2; xx <= 3.2; xx += rr(1.2, 1.7)) boulder(g, xx, H - 1.3 + rr(-0.2, 0.3), rr(-0.2, 0.8), rr(1, 1.4), rr(0.7, 1), rr(1, 1.3), pick(ROCK_TINTS));
+  // grass and moss on top (soft green lumps, a bush or two) and moss patches on the boulders' tops
+  const moss = inst(sphG(14), once('mossM', () => std(0xffffff, 0.85)));
+  for (let xx = -3.4; xx <= 3.4; xx += rr(0.5, 0.8)) moss.add(xx, H - 0.45 + rr(-0.15, 0.2), rr(-0.4, 0.9), rr(0.6, 0.9), rr(0.3, 0.45), rr(0.6, 0.9), 0, 0, pick([0x5cbf46, 0x6bcb4c, 0x4fae3e, 0x7ad45a]));
+  for (let i = 0; i < 6; i++) { const sx = rnd() < 0.5 ? -1 : 1; moss.add(sx * (W / 2 + rr(0.9, 1.8)), rr(0.8, H - 2.5), rr(0.9, 1.5), rr(0.4, 0.6), rr(0.12, 0.18), rr(0.35, 0.5), 0, 0, pick([0x5aa846, 0x6bb84e])); }
+  moss.build(g);
+  // the water
+  const top = H - 1.0;
+  if (v === 0) { fallSheet(g, 0, top, 1.45, W, top + 0.6, 0.7, 1.35); foam(g, 0, -0.6, 2.1, W); }
+  else if (v === 1) {
+    const mid = top * 0.5;
+    fallSheet(g, 0, top, 1.45, W * 0.8, top - mid, 0.55, 1.2);
+    boulder(g, 0, mid - 0.35, 2.0, 2.2, 0.55, 1.2, pick(ROCK_TINTS));                       // the ledge
+    const ledgePool = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24), gloss(0x4fc6ec, { roughness: 0.1 })); ledgePool.rotation.x = -Math.PI / 2; ledgePool.scale.y = 0.6; ledgePool.position.set(0, mid + 0.02, 2.2); g.add(ledgePool);
+    foam(g, 0, mid - 0.06, 2.1, W * 0.7);
+    fallSheet(g, 0, mid, 2.75, W * 1.1, mid + 0.6, 0.5, 1.5); foam(g, 0, -0.6, 3.4, W * 1.2);
+  } else {
+    for (const sx of [-1, 1]) { fallSheet(g, sx * 0.8, top - (sx > 0 ? 0.7 : 0), 1.45, W, top + 0.6 - (sx > 0 ? 0.7 : 0), 0.6, sx > 0 ? 1.25 : 1.45); foam(g, sx * 0.8, -0.6, 2.1, W * 1.4); }
+  }
+  // the plunge pool and stones round it
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(3.4, 40), gloss(0x3ec2ea, { roughness: 0.08 })); pool.rotation.x = -Math.PI / 2; pool.scale.y = 0.55; pool.position.set(0, -0.62, 2.6 + (v === 1 ? 0.8 : 0)); g.add(pool);
+  for (let i = 0; i < 9; i++) { const a = Math.PI * (0.05 + 0.9 * i / 8); boulder(g, Math.cos(a) * 3.6, -0.55, 2.6 + (v === 1 ? 0.8 : 0) + Math.sin(a) * 2.0, rr(0.35, 0.6), rr(0.25, 0.4), rr(0.35, 0.55), pick(ROCK_TINTS)); }
+  parent.add(shade(g, true, true));
 }
 
 // ---------------------------------------------------------------- a rainbow over the start (forest; the intro video's title)
@@ -883,12 +954,13 @@ export function updateWorld(dt, T, root, camPos) {
     snowfall.position.set(camPos.x, camPos.y - 5, camPos.z - 12);
   }
   if (root && !root.userData.anim) {                           // (collected once per level, not searched every frame)
-    const MOVE = new Set(['falls', 'asteroid', 'smoke', 'clouds', 'planet', 'aurora']);
+    const MOVE = new Set(['falls', 'foam', 'asteroid', 'smoke', 'clouds', 'planet', 'aurora']);
     const a = root.userData.anim = []; root.traverse(o => { if (MOVE.has(o.name) || o.userData.cr) a.push(o); });
   }
   for (const o of root?.userData.anim || []) {
     if (o.userData.cr) C.updateCritter(o, T);
-    else if (o.name === 'falls') o.material.map.offset.y -= dt * 1.2;
+    else if (o.name === 'falls') o.material.map.offset.y += dt * (o.userData.speed || 1.2);   // + = the streaks move DOWN (it used to rise)
+    else if (o.name === 'foam') { const k = 1 + 0.12 * Math.sin(T * 3.2 + o.userData.ph); o.scale.set(o.userData.s0.x * k, o.userData.s0.y * (2 - k), o.userData.s0.z * k); }
     // a little life in every sky (user 2026-11-24 "배경마다 구름이나 운석이나 이런것들 모션 조금씩 줘서 자연스럽게"):
     // asteroids tumble and float up and down · cloud banks drift sideways and breathe · planets turn · the aurora sways and glows
     else if (o.name === 'asteroid') { o.rotation.x += dt * o.userData.spin; o.rotation.y += dt * o.userData.spin * 0.7; o.position.y = o.userData.y0 + Math.sin(T * 0.45 + o.userData.ph) * 0.5; }
@@ -900,7 +972,7 @@ export function updateWorld(dt, T, root, camPos) {
 }
 
 // ---------------------------------------------------------------- the start pad, one per world (user 2026-11-23: "맵 모드에 맞게
-// 출발 지점도 디자인 같은 무드로"): forest = a grassy ring with a log rim and a checkered start strip, candy = a round layer
+// 출발 지점도 디자인 같은 무드로"): forest = a grassy ring with a log rim (no checkered strip on it), candy = a round layer
 // cake with frosting and a candy-cane rim, snow = an ice rink with a rim of snowballs, desert = a sandstone plaza with a
 // sun mosaic and a stone-block rim, space = the neon pad. Local y = 0 is the top; arrows on top point down the course.
 function padTex(theme) {
@@ -915,7 +987,8 @@ function padTex(theme) {
       ring(c * 0.62, 'rgba(255,255,255,.5)', 14);
       const cols = ['#ff7fae', '#ffffff', '#ffd447', '#b79bff'];
       for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2, r = c * 0.78; g.fillStyle = cols[i % 4]; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 12, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffe066'; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 4, 0, Math.PI * 2); g.fill(); }
-      for (let y = 0; y < 3; y++) for (let x = 0; x < 10; x++) { g.fillStyle = (x + y) % 2 ? '#2b2b3a' : '#f6f6f6'; g.fillRect(c - 250 + x * 50, 60 + y * 50, 50, 50); }   // the start strip (far side)
+      // (no checkered strip painted on the pad any more — user 2026-11-24 "시작 스테이지 안에도 검은색 흰색 타일이 깔리는게 어색한데";
+      // the checkered path starts at the pad's edge)
       arrows('rgba(255,255,255,.85)', c + 40);
     } else if (theme === 'candy') {
       g.fillStyle = '#ffb5d6'; g.fillRect(0, 0, S, S);

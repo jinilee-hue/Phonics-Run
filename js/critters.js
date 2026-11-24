@@ -44,6 +44,33 @@ export function bunny(col = 0xfdf8f2) {
   g.userData.cr = { k: 'hop', body: b, h: 0.32, w: 3.2 };
   return shadeAll(g);
 }
+/** a squirrel sitting up with an acorn in its paws and a big bushy tail curling up behind (user 2026-11-24: "다 토끼만 있는데
+ *  흰토끼 놔두고 어두운 토끼 다른 동물로") — chestnut fur, cream belly and muzzle, tufted ears; it looks about (the 'look' bob) */
+export function squirrel() {
+  const g = new THREE.Group(), fur = clay(0xb8662e, 0.75), cream = clay(0xf6dcb8, 0.75), dark = clay(0x6e3414, 0.7), b = new THREE.Group(); g.add(b);
+  b.add(ball(0.26, 0.32, 0.24, fur, 0, 0.34, 0));                                   // body, sitting up
+  b.add(ball(0.17, 0.23, 0.09, cream, 0, 0.32, 0.17));                              // belly
+  for (const sx of [-1, 1]) {
+    b.add(ball(0.11, 0.07, 0.19, fur, sx * 0.14, 0.06, 0.13));                       // feet
+    b.add(ball(0.06, 0.09, 0.06, fur, sx * 0.08, 0.5, 0.23));                        // paws, holding the acorn
+  }
+  b.add(ball(0.06, 0.07, 0.06, clay(0xc98a3a, 0.5), 0, 0.46, 0.29, 14));              // the acorn
+  b.add(ball(0.066, 0.035, 0.066, clay(0x7a4a22, 0.9), 0, 0.52, 0.29, 12));
+  // the tail: a chain of fluffy balls rising behind the back and curling over at the top, lighter at the tip
+  const tail = [[0, 0.16, -0.24, 0.13], [0, 0.32, -0.38, 0.17], [0, 0.55, -0.44, 0.2], [0, 0.8, -0.42, 0.2], [0, 1.0, -0.33, 0.18], [0, 1.1, -0.18, 0.15], [0, 1.08, -0.06, 0.11]];
+  tail.forEach(([x, y, z, r], i) => b.add(ball(r, r, r * 0.9, i > 4 ? clay(0xd08a4e, 0.8) : fur, x, y, z, 16)));
+  const h = new THREE.Group(); h.position.set(0, 0.8, 0.06); b.add(h);
+  h.add(ball(0.22, 0.2, 0.2, fur));
+  h.add(ball(0.11, 0.085, 0.09, cream, 0, -0.06, 0.15));
+  h.add(ball(0.032, 0.026, 0.02, dark, 0, -0.03, 0.235, 10));
+  for (const sx of [-1, 1]) {
+    h.add(ball(0.055, 0.09, 0.035, fur, sx * 0.12, 0.18, -0.02, 12));
+    h.add(ball(0.022, 0.05, 0.022, dark, sx * 0.125, 0.27, -0.03, 8));              // ear tufts
+  }
+  eyes(h, 0.04, 0.175, 0.095, 0.042);
+  g.userData.cr = { k: 'look', body: b, head: h };
+  return shadeAll(g);
+}
 export function frog() {
   const g = new THREE.Group(), green = clay(0x6fcf4c, 0.45), belly = clay(0xd9f5a8, 0.6), b = new THREE.Group(); g.add(b);
   b.add(ball(0.34, 0.24, 0.3, green, 0, 0.22, 0)); b.add(ball(0.24, 0.16, 0.12, belly, 0, 0.18, 0.2));

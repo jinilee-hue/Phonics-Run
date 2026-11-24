@@ -72,6 +72,17 @@ function headDecal(shape, mat, lift = 0.004, segs = 24) {
   g.computeVertexNormals();
   return new THREE.Mesh(g, mat);
 }
+/** like headDecal, but it bulges out of the face toward its middle (h at the centre cx, cy of an rx × ry oval): a tongue
+ *  with body that catches the light (user 2026-11-24 "입과 혀도 입체감이 너무 안사는데") */
+function headDome(shape, mat, lift, h, cx, cy, rx, ry, segs = 32) {
+  const g = new TessellateModifier(0.006, 14).modify(new THREE.ShapeGeometry(shape, segs)), p = g.getAttribute('position');
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), n = headNormal(x, y), d = Math.min(1, ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2), l = lift + h * Math.sqrt(1 - d);
+    p.setXYZ(i, x + n.x * l, y + n.y * l, headZ(x, y) + n.z * l);
+  }
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, mat);
+}
 function headTube(pts2, r, mat, lift, taper = 0) {
   const pts = pts2.map(([x, y]) => { const n = headNormal(x, y); return new THREE.Vector3(x + n.x * lift, y + n.y * lift, headZ(x, y) + n.z * lift); });
   const curve = new THREE.CatmullRomCurve3(pts), SEG = 24, RAD = 10;
@@ -351,10 +362,11 @@ export class Tata {
     }
     ms.closePath();
     const mouthM = new THREE.MeshBasicMaterial({ vertexColors: true });
-    const tongueM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 });
+    // the tongue: brighter and glossy with a soft glow of its own (it read dark and flat — user 2026-11-24 "혀가 너무 어두운거 같기도")
+    const tongueM = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.2, emissive: 0xff7a88, emissiveIntensity: 0.16 });
     this.mouthOpen = new THREE.Group(); this.mouthO = new THREE.Group(); this.head.add(this.mouthOpen, this.mouthO);
     const inside = headDecal(ms, mouthM, 0.003);
-    colorByHeight(inside.geometry, top0 - mh, top0, [[0, 0x9c2833], [0.55, 0x7c1c26], [1, 0x521018]]);
+    colorByHeight(inside.geometry, top0 - mh, top0, [[0, 0xa83442], [0.5, 0x7c1c26], [0.85, 0x4e0f18], [1, 0x3a0a12]]);   // deep shadow under the upper lip
     this.mouthOpen.add(inside);
     // tongue: an arc on top, the mouth's own bottom (inset) below — it never pokes out of the mouth
     const tw = 0.112, tTop = top0 - 0.098, tR = 0.07, ts = new THREE.Shape();
@@ -365,9 +377,13 @@ export class Tata {
     }
     for (let i = 32; i >= 0; i--) { const x = -tw + (2 * tw * i) / 32; ts.lineTo(x * 0.999, lowY(x) + 0.011); }
     ts.closePath();
-    const tongue = headDecal(ts, tongueM, 0.006);
-    colorByHeight(tongue.geometry, top0 - mh, tTop, [[0, 0xe8606f], [1, 0xf58f9a]]);
+    const tongue = headDome(ts, tongueM, 0.006, 0.022, 0, (tTop + lowY(0)) / 2, tw, 0.055);
+    colorByHeight(tongue.geometry, top0 - mh, tTop, [[0, 0xf06a7a], [1, 0xffa3ad]]);
     this.mouthOpen.add(tongue);
+    // the lower lip: a soft orange roll along the bottom of the mouth, lit on top and shaded under, so the mouth has an edge
+    const lip = [];
+    for (let i = 0; i <= 14; i++) { const x = (-0.5 + i / 14) * mw * 0.9; lip.push([x, lowY(x) - 0.007]); }
+    this.mouthOpen.add(headTube(lip, 0.011, orange, 0.002, 0.7));
     // 'o' (hurt)
     const os = new THREE.Shape(); os.absellipse(0, top0 - 0.075, 0.062, 0.078, 0, Math.PI * 2);
     const oIn = headDecal(os, mouthM, 0.003); colorByHeight(oIn.geometry, top0 - 0.153, top0 + 0.003, [[0, 0x9c2833], [1, 0x521018]]); this.mouthO.add(oIn);
