@@ -406,7 +406,12 @@ function snowman(g, x, z, s, side) {
   for (const ex of [-0.13, 0.13]) { const e = E3(0.045 * s, 0.05 * s, 0.03 * s, std(0x1b1430), 8); e.position.set(ex * s, 1.35 * s, 0.38 * s); m.add(e); }
   const nose = new THREE.Mesh(new THREE.ConeGeometry(0.05 * s, 0.25 * s, 10), std(0xff8a2a)); nose.rotation.x = Math.PI / 2; nose.position.set(0, 1.25 * s, 0.5 * s); m.add(nose);
   const scarf = new THREE.Mesh(new THREE.TorusGeometry(0.34 * s, 0.08 * s, 8, 24), std(pick([0xff4f6d, 0x4f8fff, 0xffc83a]), 0.7)); scarf.rotation.x = Math.PI / 2; scarf.position.y = 0.98 * s; m.add(scarf);
-  for (const sx of [-1, 1]) { const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025 * s, 0.025 * s, 0.6 * s, 5), std(0x6b4226)); arm.position.set(sx * 0.6 * s, 1.15 * s, 0); arm.rotation.z = sx * 1.0; m.add(arm); }
+  // stick arms out of the BODY's shoulders, reaching out and up (user 2026-11-24: "눈사람에 손이 머리에 꽂혀있어. 몸통에
+  // 꽂던지"): the inner end sits inside the body at y 0.72 (its surface is at x 0.55 there), the outer end clears the scarf
+  for (const sx of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025 * s, 0.025 * s, 0.7 * s, 5), std(0x6b4226));
+    arm.position.set(sx * 0.723 * s, 0.894 * s, 0); arm.rotation.z = -sx * 1.05; m.add(arm);
+  }
   g.add(shade(m));
 }
 function cabin(g, x, z, s) {
