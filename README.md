@@ -40,11 +40,11 @@ Word Mashup 3D 월드(B안 시안)의 환경 — 하늘·구름바다·떠 있�
 | `js/audio.js` · `js/voice.js` | 음성·효과음·배경음악 · 클립 표(생성물) |
 | `js/phonics-api.js` · `js/mic.js` · `js/stt.js` · `js/stt-worker.js` · `stt/` | 발음 판정(phonics-kit / Phonics Puzzle 사본) |
 | `js/phonics-progress.js` | 공통 진도(phonics-kit 사본), id `phonics-run` |
-| `assets/words` · `assets/voice` · `assets/audio/bgm.mp3` | 레슨팩 그림 · 음성 · 배경음악 |
+| `assets/words` · `assets/voice` · `assets/audio/bgm-rock.mp3` · `bgm-dance.mp3` | 레슨팩 그림 · 음성 · 배경음악 |
 
 ## 생성 스크립트
 - 음성: `uv run --with numpy python tools/build_voice.py` (레슨팩 단어·/m/ + 튜터 대사 EN/KO, phonics-api TTS, 키는 `~/.config/phonics-api/key`)
-- 배경음악: `uv run --with numpy --with scipy --with pyloudnorm python tools/make_bgm.py` (블루그래스 호다운 G 160BPM 24초)
+- 배경음악: `uv run --with numpy --with scipy --with pyloudnorm python tools/make_bgm.py` (팝록 G 140BPM — 숲·눈·우주 / 댄스팝 A♭ 132BPM — 사탕·사막, 같은 멜로디)
 - QA: `uv run --with playwright python tools/shots.py --scene basic|flow|hurt|locked|demo|say|shop [--query nohint&fake=ok,wrong]`,
   캐릭터 비교 `tools/tata_cmp.py` · `tools/tata_face.py` · `tools/tata_hands.py`
 

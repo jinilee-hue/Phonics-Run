@@ -133,9 +133,11 @@ function drawJoy() { $('knob').style.transform = `translate(${joy.x * 34}%, ${jo
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
 }
 let greeted = false;
+// the music alternates by map — pop-rock for Forest · Snow · Space, dance-pop for Candy · Desert (tools/make_bgm.py)
+const trackOf = i => (i % 2 ? 'dance' : 'rock');
 addEventListener('pointerdown', () => {
   A.unlock();
-  if (!greeted && G.screen === 'title') { greeted = true; A.music(true); A.say('t:pressstart'); }
+  if (!greeted && G.screen === 'title') { greeted = true; A.music(true, trackOf(G.idx || 0)); A.say('t:pressstart'); }
 }, { capture: true });
 addEventListener('contextmenu', e => e.preventDefault());
 
@@ -208,7 +210,7 @@ function resetRun() {
 let micAsked = false;
 function startLevel(idx) {
   if (!unlocked(idx) && !qs.has('level')) idx = continueLevel();
-  A.unlock(); A.sfx.tap(); A.music(true); A.stopVoice();
+  A.unlock(); A.sfx.tap(); A.music(true, trackOf(idx)); A.stopVoice();
   if (G.idx !== idx || !G.lv || G.lv.dirty) load(idx);
   G.lv.dirty = true;
   setScreen('play');

@@ -106,16 +106,32 @@ export function stopVoice(keepSeq) {
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------------------------------------------------------------- music (quiet under the voice, almost off while listening)
-let bgmSrc = null, bgmOn = false;
-export async function music(on) {
+// Two loops, alternating by map (user 2026-11-24 "a,b 둘다 좋은데 맵별로 다르게 넣어줘"; game.js trackOf picks one).
+// loop = 16 bars at the BPM in tools/make_bgm.py — keep them in step.
+const TRACKS = {
+  rock: { url: 'assets/audio/bgm-rock.mp3', loop: 16 * 4 * 60 / 140 },
+  dance: { url: 'assets/audio/bgm-dance.mp3', loop: 16 * 4 * 60 / 132 },
+};
+let bgm = null, bgmOn = false, bgmWant = 'rock';      // bgm = { name, src, g } now playing
+export async function music(on, track) {
   bgmOn = on;
+  if (track && TRACKS[track]) bgmWant = track;
   if (!A.ctx) return;
-  if (on && !bgmSrc) {
-    const buf = await loadUrl('assets/audio/bgm.mp3');
-    if (!buf || bgmSrc || !bgmOn) { duck(); return; }
-    bgmSrc = A.ctx.createBufferSource(); bgmSrc.buffer = buf; bgmSrc.loop = true;
-    bgmSrc.loopStart = 0; bgmSrc.loopEnd = Math.min(24, buf.duration);     // 16 bars at 160 BPM (tools/make_bgm.py)
-    bgmSrc.connect(A.bgmBus); bgmSrc.start();
+  if (on && bgm?.name !== bgmWant) {
+    const name = bgmWant, T = TRACKS[name];
+    const buf = await loadUrl(T.url);
+    if (!buf || !bgmOn || name !== bgmWant || bgm?.name === name) { duck(); return; }
+    const now = A.ctx.currentTime;
+    if (bgm) {                                         // a new map: the old loop fades out under the new one
+      const old = bgm;
+      old.g.gain.setTargetAtTime(0, now, 0.15);
+      setTimeout(() => { try { old.src.stop(); } catch (e) { /* stopped */ } old.g.disconnect(); }, 900);
+    }
+    const src = A.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    src.loopStart = 0; src.loopEnd = Math.min(T.loop, buf.duration);
+    const g = A.ctx.createGain(); g.gain.value = 1;
+    src.connect(g); g.connect(A.bgmBus); src.start();
+    bgm = { name, src, g }; A.track = name;           // A.track: tests read Sound.track
   }
   duck();
 }
