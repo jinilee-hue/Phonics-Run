@@ -119,7 +119,12 @@ export function sunFollow(x, y, z = 0) {
   sun.target.position.set(x, y - 2, z - 8);
 }
 
-export const composer = new EffectComposer(renderer);
+// the scene is drawn into the composer's texture, which has no anti-aliasing of its own — the canvas's `antialias` does not
+// reach it, so every outline came out as a jagged dark staircase (user 2026-11-24: "모든 오브젝트 테두리에 검은색 선처럼
+// 깨져보이는거"). A multisampled target smooths them again — as many samples as the GPU gives, up to 8 ("테두리 최대한 부드럽게").
+export const MSAA = Math.min(8, renderer.capabilities.maxSamples || 4);
+export const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: MSAA }));
+composer.setSize(innerWidth, innerHeight);
 composer.addPass(new RenderPass(scene, camera));
 export const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.3, 0.35, 1.1);
 composer.addPass(bloom);
@@ -157,33 +162,34 @@ export const sky = (() => {
 // meadow = the Word Mashup world as it was · candy = a sunset candy land · night = a starry crystal night.
 export const THEMES = {
   forest: {
-    sky: [0x2b8fe6, 0x74c8f4, 0xdaf3ff], fog: [0xcfeeff, 55, 210], hemi: [0xe6f4ff, 0xb2cc94, 1.0], sun: [0xfff2dc, 2.8],
-    env: 0.28, exposure: 0.98, bloom: [0, 9], grass: 0x6bcb4c, grassGlow: 0, dirt: [0x7a4a2a, 0x9c6438, 0xbb8250, 0xcf9a62],
+    sky: [0x3d97e8, 0x8fd0f5, 0xf4f0dc], fog: [0xdcefff, 45, 210], hemi: [0xd6ebff, 0x7fae6a, 1.0], sun: [0xffe4bf, 2.9],
+    shadow: 0.6, env: 0.28, exposure: 0.95, bloom: [0, 9], grass: 0x6bcb4c, grassGlow: 0, dirt: [0x7a4a2a, 0x9c6438, 0xbb8250, 0xcf9a62],
     tree: 'round', fence: { color: 0xc58a4e }, cloud: [0xffffff, 0xd6e6ff, 0.2], path: 0xe3bd86,
     balloons: [['#ff6fa8', '#ffd34d'], ['#7ed96b', '#a57bff'], ['#4fb3ff', '#ffd34d']], cardGlow: 0.14, playerLight: 0, stars: false,
   },
   candy: {
-    sky: [0x3c9cef, 0x93d2ff, 0xffe2f0], fog: [0xffe0ef, 55, 210], hemi: [0xfff2f6, 0xd9a6b4, 1.0], sun: [0xfff0e2, 2.6],
-    env: 0.3, exposure: 1.0, bloom: [0, 9], grass: 0xffb5d6, grassGlow: 0, dirt: [0x4a2414, 0x6c3a20, 0x8a5230, 0xf3e2cc],
+    sky: [0x5aa6f0, 0xb6dcff, 0xffd6ea], fog: [0xffe2f0, 55, 210], hemi: [0xffe8f2, 0xc98aa8, 1.0], sun: [0xffe2c8, 2.75],
+    shadow: 0.6, env: 0.3, exposure: 0.97, bloom: [0, 9], grass: 0xffb5d6, grassGlow: 0, dirt: [0x4a2414, 0x6c3a20, 0x8a5230, 0xf3e2cc],
     tree: 'candy', fence: { color: 0xffffff, stripes: '#ff4f5e' }, cloud: [0xffe4f1, 0xff9cc8, 0.35], path: 0xe8b46a,
     frostings: [0xffb5d6, 0xffd0e6, 0xf6c8ff], balloons: [['#ff6fa8', '#fff3c4'], ['#ffb347', '#ffffff'], ['#a57bff', '#ffd6f0']],
     cardGlow: 0.18, playerLight: 0, stars: false,
   },
   snow: {
-    sky: [0x4c9ded, 0xa6d4ff, 0xf4e6ff], fog: [0xe8f3ff, 55, 220], hemi: [0xf4f9ff, 0xaec6e0, 1.05], sun: [0xfff6ee, 2.6],
-    env: 0.32, exposure: 0.98, bloom: [0, 9], grass: 0xf7fbff, grassGlow: 0, dirt: [0x4f8fd6, 0x76b2ec, 0xa6d6fb, 0xd2ecff],
+    // the reference still (user's snow map): warm sun, blue-lavender shade on the snow, a pink horizon, light shadows
+    sky: [0x4a93e6, 0xa9d2fa, 0xf6e0ee], fog: [0xe9edfa, 40, 200], hemi: [0xc9dcff, 0x7c9ce4, 1.0], sun: [0xffd9b0, 2.75],
+    shadow: 0.55, env: 0.3, exposure: 0.92, bloom: [0, 9], grass: 0xf7fbff, grassGlow: 0, dirt: [0x4f8fd6, 0x76b2ec, 0xa6d6fb, 0xd2ecff],
     tree: 'pine', fence: { color: 0xf4f9ff }, cloud: [0xffffff, 0xd8e6ff, 0.25], path: 0xe6f0fb,
     balloons: null, cardGlow: 0.14, playerLight: 0, stars: false, snowfall: true,
   },
   desert: {
-    sky: [0x5aa6e6, 0xf0d6a8, 0xffe6bc], fog: [0xf6dcae, 55, 220], hemi: [0xfff3dc, 0xd8b078, 1.0], sun: [0xfff0d0, 3.0],
-    env: 0.28, exposure: 0.98, bloom: [0, 9], grass: 0xf0c072, grassGlow: 0, dirt: [0xa86a36, 0xc68650, 0xdca468, 0xebbd7e],
+    sky: [0x4f9be6, 0xbfe0f5, 0xffe0b4], fog: [0xf8e2bc, 45, 220], hemi: [0xfff0dc, 0xc08a52, 0.95], sun: [0xffd6a0, 3.0],
+    shadow: 0.62, env: 0.28, exposure: 0.95, bloom: [0, 9], grass: 0xf0c072, grassGlow: 0, dirt: [0xa86a36, 0xc68650, 0xdca468, 0xebbd7e],
     tree: 'palm', fence: { color: 0xd9a86a }, cloud: [0xfff6e6, 0xffd8a8, 0.25], path: 0xf8dca0,
     balloons: null, cardGlow: 0.14, playerLight: 0, stars: false,
   },
   space: {
     sky: [0x08052a, 0x24125a, 0x5a2c8c], fog: [0x1c1450, 50, 260], hemi: [0xbcaaff, 0x3a2a72, 0.95], sun: [0xe6dcff, 2.0],
-    env: 0.4, exposure: 1.04, bloom: [0, 9], grass: 0x9c8ec4, grassGlow: 0, dirt: [0x2e2648, 0x463a6a, 0x5e508a, 0x7c6eaa],
+    shadow: 0.7, env: 0.4, exposure: 1.04, bloom: [0, 9], grass: 0x9c8ec4, grassGlow: 0, dirt: [0x2e2648, 0x463a6a, 0x5e508a, 0x7c6eaa],
     tree: 'crystal', fence: { color: 0x8af4ff, glow: 0x2fc8ff }, cloud: [0xc4c0ff, 0x6a5fd0, 0.4], path: 0x6d5fd6,
     balloons: null, cardGlow: 0.3, playerLight: 10, stars: true, lowGravity: true,
   },
@@ -229,6 +235,7 @@ export function applyTheme(name) {
   nightSky.visible = TH.stars;
   playerLight.intensity = TH.playerLight;
   document.body.style.background = '#' + new THREE.Color(TH.sky[1]).getHexString();
+  sun.shadow.intensity = TH.shadow ?? 1;
 }
 
 // ---------------------------------------------------------------- textures
@@ -413,16 +420,20 @@ export function crystalTree(parent, x, z, s, y) {
   parent.add(shade(g, true, false));
   return g;
 }
+let treeLeafM = null;
 export function tree(parent, x, z, s = 1, y = 0) {
   if (TH.tree === 'candy') return candyTree(parent, x, z, s, y);
   if (TH.tree === 'crystal') return crystalTree(parent, x, z, s, y);
   const g = new THREE.Group(); g.position.set(x, y, z);
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.18 * s, 1.0 * s, 10), std(0x8a5a30, 0.85));
   trunk.position.y = 0.5 * s;
-  const leaf = std(rnd() < 0.5 ? 0x45b13c : 0x5fc94a, 0.72);
-  const top = new THREE.Mesh(blob(0.82 * s), leaf); top.position.y = 1.5 * s;
+  // the canopy shaded in its vertex colours: darker underneath, sunlit on top (the soft look of the reference renders)
+  const base = C(rnd() < 0.5 ? 0x45b13c : 0x5fc94a), dark = base.clone().multiplyScalar(0.62), light = base.clone().lerp(C(0xd8f27a), 0.35);
+  const leaf = treeLeafM ||= std(0xffffff, 0.72, { vertexColors: true });
+  const canopy = r => colorByY(blob(r), -r, r, [[0, dark], [0.45, base], [1, light]]);
+  const top = new THREE.Mesh(canopy(0.82 * s), leaf); top.position.y = 1.5 * s;
   g.add(trunk, top);
-  if (rnd() < 0.55) { const t2 = new THREE.Mesh(blob(0.52 * s), leaf); t2.position.set(0.5 * s, 1.15 * s, 0.15 * s); g.add(t2); }
+  if (rnd() < 0.55) { const t2 = new THREE.Mesh(canopy(0.52 * s), leaf); t2.position.set(0.5 * s, 1.15 * s, 0.15 * s); g.add(t2); }
   parent.add(shade(g));
   return g;
 }

@@ -230,7 +230,7 @@ export class Tata {
       g.beginPath(); g.roundRect(16, 22, 30, 20, 6); g.fill();
       g.lineWidth = 20; g.strokeStyle = '#fff';
       g.beginPath(); g.moveTo(44, 32); g.lineTo(70, 32); g.arc(70, 52, 20, -Math.PI / 2, Math.PI / 2); g.lineTo(44, 72); g.stroke();
-      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
       return t;
     })();
     {
@@ -282,7 +282,7 @@ export class Tata {
       g.fillStyle = rim; g.beginPath(); g.arc(128, 128, 128, 0, Math.PI * 2); g.fill();
       const pup = g.createRadialGradient(124, 118, 10, 124, 118, 62); pup.addColorStop(0, '#120502'); pup.addColorStop(0.85, '#1c0904'); pup.addColorStop(1, 'rgba(28,9,4,0)');
       g.fillStyle = pup; g.beginPath(); g.arc(124, 118, 62, 0, Math.PI * 2); g.fill();
-      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
     })();
     const irisGeo = (() => {                                   // a cap round +z with a flat (front) UV: the iris disc painted on it
       const gg = new THREE.SphereGeometry(1, 40, 14, 0, Math.PI * 2, 0, IRIS).rotateX(Math.PI / 2);
