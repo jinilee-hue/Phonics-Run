@@ -539,7 +539,8 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .s-title .view-tog { position: absolute; right: calc(3 * var(--u)); bottom: calc(5 * var(--u) + (13 * var(--u) - 8.6 * var(--u) - 1.6 * var(--u)) / 2); }
 
 /* the say-it card in the middle after all (user: "카드는 가운데 있어야지"), still bigger than it was; buttons centred under it */
-.say-card { left: 50%; top: calc(11 * var(--u)); width: calc(40 * var(--u)); }
+/* a clear gap under the collected tiles (user 2026-11-24: "단어카드가 위에 작은 카드랑 너무 붙어있어 좀 내려줘") */
+.say-card { left: 50%; top: calc(14 * var(--u)); width: calc(40 * var(--u)); }
 .say-card img { width: calc(29 * var(--u)); height: calc(29 * var(--u)); }
 .say-word { font-size: calc(11.5 * var(--u)); }
 .say-row { left: 50%; bottom: calc(3.4 * var(--u)); }
