@@ -327,8 +327,11 @@ export function mushroom(g, x, z, s, colour) {
   const m = new THREE.Group(); m.position.set(x, 0, z);
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * s, 0.3 * s, 0.7 * s, 16), std(0xfff3dc, 0.7)); stem.position.y = 0.35 * s; m.add(stem);
   const col = colour || pick(['#ff4a4a', '#ff4a4a', '#a767ff', '#ff7fb0']);
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62 * s, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2), gloss(0xffffff, { map: spotsTex(col) }));
+  // soft matte clay like the rest of the meadow (user 2026-11-24 "버섯들만 너무 광택이 있지 않아? 전체 화면 무드에 맞춰서"):
+  // it was clear-coated candy gloss; a cream underside closes the cap
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62 * s, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), once('mushM' + col, () => new THREE.MeshStandardMaterial({ map: spotsTex(col), roughness: 0.68, metalness: 0 })));
   cap.scale.y = 0.72; cap.position.y = 0.66 * s; m.add(cap);
+  const under = new THREE.Mesh(new THREE.CircleGeometry(0.6 * s, 32), std(0xf4e2c4, 0.85)); under.rotation.x = Math.PI / 2; under.position.y = 0.665 * s; m.add(under);
   g.add(shade(m)); return m;
 }
 function pipe(g, x, z, s) {
