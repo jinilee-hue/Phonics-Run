@@ -41,11 +41,11 @@ function inst(geo, mat) {
   const L = [];
   return {
     add: (...a) => L.push(a),
-    build(parent) {
+    build(parent, recv = true) {   // recv false: no shadows ON these (neighbouring lumps drew dark seams on each other)
       if (!L.length) return null;
       const m = new THREE.InstancedMesh(geo, mat, L.length), M = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color();
       L.forEach(([x, y, z, sx, sy, sz, ry = 0, rx = 0, col = 0xffffff], i) => { e.set(rx, ry, 0); q.setFromEuler(e); M.compose(V(x, y, z), q, V(sx, sy, sz)); m.setMatrixAt(i, M); m.setColorAt(i, c.set(col)); });
-      m.castShadow = m.receiveShadow = true; parent.add(m); return m;
+      m.castShadow = true; m.receiveShadow = recv; parent.add(m); return m;
     },
   };
 }
@@ -84,10 +84,10 @@ function snowBlock(parent, w, len, h) {
   for (const sz of [-1, 1]) for (let x = -w / 2 + 0.5; x < w / 2 - 0.3; x += rr(0.55, 0.85)) col(x, sz * (len / 2 - 0.55 + rr(-0.1, 0.1)));
   cols.build(g);
   const cap = new THREE.Mesh(new RoundedBoxGeometry(w, 0.95, len, 4, 0.42), SNOW()); cap.position.y = 0.015 - 0.475; cap.castShadow = cap.receiveShadow = true; g.add(cap);
-  const drifts = inst(sphG(12), SNOW());
+  const drifts = inst(sphG(20), SNOW());
   for (let z = -len / 2 + 0.3; z < len / 2; z += rr(0.36, 0.5)) for (const sx of [-1, 1]) drifts.add(sx * (w / 2 - 0.05), -0.42 + rr(-0.04, 0.03), z, rr(0.5, 0.62), rr(0.32, 0.38), rr(0.75, 0.9));
   for (const sz of [-1, 1]) for (let x = -w / 2 + 0.3; x < w / 2; x += rr(0.36, 0.5)) drifts.add(x, -0.42 + rr(-0.04, 0.03), sz * (len / 2 - 0.05), rr(0.75, 0.9), rr(0.32, 0.38), rr(0.5, 0.62));
-  drifts.build(g);
+  drifts.build(g, false);
   const ics = inst(coneG(), icicleM());
   // the icicle's root sits inside the drift above it (at -0.8 it showed a sliver of gap under the drift's curve)
   const ic = (x, z) => { if (rnd() < 0.3) return; const L = rr(0.62, 1.72), r = rr(0.09, 0.18); ics.add(x, -0.68 - L / 2, z, r, L, r, 0, Math.PI, rnd() < 0.45 ? pick(RAINBOW_ICE) : 0xd8f0ff); };
@@ -114,7 +114,7 @@ const BLOCK = {
     face: { kind: 'crystal', tints: [0x7ff3ff, 0xff8fe6, 0xb69bff, 0x9ff2ff] }, lip: [0x6a5c94, 0x5e508a, 0x7c6eaa, 0x8a7cb8], lipRough: 0.9, hang: { kind: 'crystal', tints: [0x7ff3ff, 0xff8fe6, 0xb69bff] } },
 };
 const unitBox = () => once('unitBox', () => new RoundedBoxGeometry(1, 1, 1, 2, 0.12));
-const unitCap = () => once('unitCap', () => new THREE.CapsuleGeometry(0.5, 1, 4, 10));
+const unitCap = () => once('unitCap', () => new THREE.CapsuleGeometry(0.5, 1, 8, 18));
 const rockG = () => once('rockG', () => new THREE.IcosahedronGeometry(1, 1));
 function styledBlock(parent, w, len, h, theme) {
   const B = BLOCK[theme], g = new THREE.Group();
@@ -140,11 +140,13 @@ function styledBlock(parent, w, len, h, theme) {
   const capM = theme === 'candy' ? E.candyM(capCol) : std(capCol, B.capRough, theme === 'space' ? { flatShading: true } : {});
   const cap = new THREE.Mesh(new RoundedBoxGeometry(w, 0.95, len, 4, 0.42), capM); cap.position.y = 0.015 - 0.475; cap.castShadow = cap.receiveShadow = true; g.add(cap);
   const lipM = theme === 'candy' ? capM : once('lipM' + theme, () => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: B.lipRough, flatShading: theme === 'space' }));
-  const lips = inst(theme === 'space' ? rockG() : sphG(12), lipM), tint = () => (B.lip ? pick(B.lip) : 0xffffff);
+  // (user 2026-11-24 "아직도 테두리가 검은색 선처럼 깨져서 나와": 12-segment balls showed facets on their outline and each
+  // lump's shadow drew a dark seam on the next — 20 segments, and the lip and its drips take no shadows)
+  const lips = inst(theme === 'space' ? rockG() : sphG(20), lipM), tint = () => (B.lip ? pick(B.lip) : 0xffffff);
   const ly = theme === 'forest' ? -0.36 : -0.42, ry = theme === 'forest' ? [0.36, 0.44] : theme === 'desert' ? [0.26, 0.32] : [0.32, 0.38];
   for (let z = -len / 2 + 0.3; z < len / 2; z += rr(0.36, 0.5)) for (const sx of [-1, 1]) lips.add(sx * (w / 2 - 0.05), ly + rr(-0.04, 0.03), z, rr(0.5, 0.62), rr(...ry), rr(0.75, 0.9), theme === 'space' ? rr(0, 6) : 0, 0, tint());
   for (const sz of [-1, 1]) for (let x = -w / 2 + 0.3; x < w / 2; x += rr(0.36, 0.5)) lips.add(x, ly + rr(-0.04, 0.03), sz * (len / 2 - 0.05), rr(0.75, 0.9), rr(...ry), rr(0.5, 0.62), theme === 'space' ? rr(0, 6) : 0, 0, tint());
-  lips.build(g);
+  lips.build(g, false);
   if (B.hang) {
     const H = B.hang;
     const hm = H.kind === 'drip' ? capM : H.kind === 'crystal' ? once('faceM' + theme, () => null) || once('hangM' + theme, () => new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x2a1a6a, emissiveIntensity: 0.9, roughness: 0.2, flatShading: true }))
@@ -160,7 +162,7 @@ function styledBlock(parent, w, len, h, theme) {
     const out = H.kind === 'drip' ? 0.02 : H.kind === 'crystal' ? 0.04 : 0.12;
     for (let z = -len / 2 + 0.4; z < len / 2 - 0.2; z += rr(0.3, 0.6)) for (const sx of [-1, 1]) one(sx * (w / 2 + out), z);
     for (const sz of [-1, 1]) for (let x = -w / 2 + 0.4; x < w / 2 - 0.2; x += rr(0.3, 0.6)) one(x, sz * (len / 2 + out));
-    hs.build(g);
+    hs.build(g, false);
   }
   if (theme === 'candy') {                                                     // sprinkles on the frosting either side of the path
     const pts = [], n = Math.round(len * 5);

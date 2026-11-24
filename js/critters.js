@@ -98,9 +98,12 @@ export function butterfly(a = 0xff8cc6, b = 0xffd447) {
 // ---------------------------------------------------------------- candy
 export function gummyBear(col) {
   const g = new THREE.Group(), b = new THREE.Group(); g.add(b);
-  const m = new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.05, transparent: true, opacity: 0.86, sheen: 0.4, sheenColor: new THREE.Color(0xffffff) });
+  // opaque (user 2026-11-24 "곰돌이들 투명해서 몸과 얼굴이 겹쳐져서 보이는데": see-through, the head, arms and legs showed
+  // inside the body); the jelly look comes from the gloss and a soft inner glow of its own colour instead
+  const m = new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.05, sheen: 0.4, sheenColor: new THREE.Color(0xffffff),
+    emissive: col, emissiveIntensity: 0.18 });
   b.add(ball(0.34, 0.4, 0.3, m, 0, 0.5, 0));
-  b.add(ball(0.2, 0.24, 0.1, new THREE.MeshPhysicalMaterial({ color: new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.35), roughness: 0.15, clearcoat: 1, transparent: true, opacity: 0.8 }), 0, 0.46, 0.22));
+  b.add(ball(0.2, 0.24, 0.1, new THREE.MeshPhysicalMaterial({ color: new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.35), roughness: 0.15, clearcoat: 1 }), 0, 0.46, 0.22));
   for (const sx of [-1, 1]) b.add(ball(0.14, 0.16, 0.15, m, sx * 0.17, 0.14, 0.06));
   const armL = new THREE.Group(); armL.position.set(-0.3, 0.68, 0.02); armL.add(ball(0.1, 0.2, 0.1, m, 0, -0.14, 0)); armL.rotation.z = -0.5; b.add(armL);
   const armR = new THREE.Group(); armR.position.set(0.3, 0.68, 0.02); armR.add(ball(0.1, 0.2, 0.1, m, 0, -0.14, 0)); armR.rotation.z = 0.5; b.add(armR);

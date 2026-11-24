@@ -25,7 +25,7 @@ export function std(color, rough = 0.6, extra = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0, ...extra });
 }
 export function shade(o, cast = true, receive = true) {
-  o.traverse(c => { if (c.isMesh) { c.castShadow = cast; c.receiveShadow = receive; } });
+  o.traverse(c => { if (c.isMesh) { c.castShadow = cast; c.receiveShadow = receive && !c.userData.noRecv; } });   // noRecv: soft stacked shapes
   return o;
 }
 export function canvasTex(w, h, draw, srgb = true) {
@@ -366,8 +366,10 @@ export function cupcake(g, s) {
   cupGeo.computeVertexNormals();
   const cup = new THREE.Mesh(cupGeo, softM(PASTEL[(rnd() * PASTEL.length) | 0])); cup.position.y = 0.35 * s; g.add(cup);
   const icing = candyM([0xfff6fb, 0xffa3cb, 0x8fe6c4, 0xc8b0ff][(rnd() * 4) | 0]);
-  [[0.66, 0.2, 0.82], [0.5, 0.18, 1.05], [0.32, 0.15, 1.25]].forEach(([r, t, y]) => { const tor = new THREE.Mesh(new THREE.TorusGeometry(r * s, t * s, 16, 40), icing); tor.rotation.x = Math.PI / 2; tor.position.y = y * s; g.add(tor); });
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.32 * s, 20), icing); tip.position.y = 1.45 * s; g.add(tip);
+  // the icing rings take no shadows: each ring's shadow on the one below drew a dark broken line in the crease
+  // (user 2026-11-24 "아직도 테두리가 검은색 선처럼 깨져서 나와"); rounder rings too
+  [[0.66, 0.2, 0.82], [0.5, 0.18, 1.05], [0.32, 0.15, 1.25]].forEach(([r, t, y]) => { const tor = new THREE.Mesh(new THREE.TorusGeometry(r * s, t * s, 24, 56), icing); tor.rotation.x = Math.PI / 2; tor.position.y = y * s; tor.userData.noRecv = true; g.add(tor); });
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.32 * s, 20), icing); tip.position.y = 1.45 * s; tip.userData.noRecv = true; g.add(tip);
   const cherry = new THREE.Mesh(new THREE.SphereGeometry(0.16 * s, 20, 14), candyM(0xff5c8a)); cherry.position.y = 1.66 * s; g.add(cherry);
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.018 * s, 0.018 * s, 0.24 * s, 6), std(0x6bbf6b, 0.6)); stem.position.set(0.05 * s, 1.84 * s, 0); stem.rotation.z = -0.4; g.add(stem);
   const pts = [];
