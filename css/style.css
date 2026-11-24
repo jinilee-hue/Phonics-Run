@@ -141,6 +141,7 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
   box-shadow: 0 calc(1.1 * var(--u)) 0 #c92c48, 0 calc(2 * var(--u)) calc(2.4 * var(--u)) rgba(120, 20, 50, .35); text-shadow: 0 calc(.4 * var(--u)) 0 #c92c48; animation: breathe 1.6s ease-in-out infinite; }
 .bigbtn svg { width: calc(7 * var(--u)); height: calc(7 * var(--u)); filter: drop-shadow(0 calc(.4 * var(--u)) 0 #c92c48); }
 .bigbtn span { margin-top: calc(.7 * var(--u)); }
+#btnStart { padding: 0 calc(6.4 * var(--u)); justify-content: center; }   /* the word alone, centred (no play arrow — user 2026-11-24) */
 .bigbtn:active { transform: translateY(calc(.8 * var(--u))); box-shadow: 0 calc(.3 * var(--u)) 0 #c92c48; animation: none; }
 @keyframes breathe { 50% { transform: scale(1.04); } }
 
@@ -376,6 +377,7 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 /* SKIP at the bottom centre, between the stick and the jump button (user 2026-11-24 "skip 버튼 가운데로 옮겨줘"), where the
    other phonics games keep theirs */
 .skip { left: 50%; right: auto; translate: -50% 0; bottom: calc(3 * var(--u)); }
+.skip { box-shadow: none; text-shadow: none; }   /* no shadow under or on SKIP (user 2026-11-24 "skip에 그림자 빼줘") */
 
 /* result ribbons = Toy Catch's (user 2026-11-23: "리본도 깨지지 않은걸로 바꿔. 다른 파닉스 게임들 좀 참조해"): one rounded band
    with the title, swallowtails with rounded corners behind it and a dark fold under each end of the band */

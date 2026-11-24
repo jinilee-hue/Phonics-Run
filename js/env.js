@@ -433,30 +433,72 @@ export function tree(parent, x, z, s = 1, y = 0) {
   // tree · 1 a tall slim poplar · 2 a cloud tree (three puffs on a forked trunk) · 3 an apple tree · 4 a birch (white trunk,
   // light leaves) · 5 a green pine. The canopy is shaded in its vertex colours: darker underneath, sunlit on top.
   const kind = (rnd() * 6) | 0;
+  // more detail (user 2026-11-24 "좀더 나무 모양이 디테일 했으면 … 그냥 덩어리로 뭉쳐있는 느낌"): every leafy crown is a cluster
+  // of leaf clumps (a big core, rounded clumps round it, small tufts on top) merged into one mesh, shaded dark inside and
+  // underneath, sunlit on top, each clump a slightly different green; trunks flare at the roots and fork into branches
   const greens = [0x45b13c, 0x5fc94a, 0x3e9f48, 0x6fd04e], gcol = kind === 4 ? 0x86d65a : kind === 5 ? 0x2f9a4e : greens[(rnd() * greens.length) | 0];
-  const base = C(gcol), dark = base.clone().multiplyScalar(0.62), light = base.clone().lerp(C(0xd8f27a), 0.35);
+  const base = C(gcol), dark = base.clone().multiplyScalar(0.55), light = base.clone().lerp(C(0xe2f58a), 0.4);
   const leaf = treeLeafM ||= std(0xffffff, 0.72, { vertexColors: true });
-  const canopy = (r, sy = 1) => { const geo = colorByY(blob(r), -r, r, [[0, dark], [0.45, base], [1, light]]); geo.scale(1, sy, 1); return geo; };
   const trunkM = kind === 4 ? std(0xf2ede4, 0.7) : std(0x8a5a30, 0.85);
-  const trunk = (h, r0 = 0.12, r1 = 0.18) => { const t = new THREE.Mesh(new THREE.CylinderGeometry(r0 * s, r1 * s, h * s, 10), trunkM); t.position.y = h * s / 2; g.add(t); return t; };
-  const puff = (r, x0, y0, z0, sy) => { const m = new THREE.Mesh(canopy(r * s, sy), leaf); m.position.set(x0 * s, y0 * s, z0 * s); g.add(m); return m; };
-  if (kind === 0) { trunk(1.0); puff(0.82, 0, 1.5, 0); if (rnd() < 0.55) puff(0.52, 0.5, 1.15, 0.15); }
-  else if (kind === 1) { trunk(1.0, 0.1, 0.15); puff(0.55, 0, 2.0, 0, 2.1); }
-  else if (kind === 2) {
-    trunk(1.1); for (const sx of [-1, 1]) { const br = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * s, 0.1 * s, 0.8 * s, 8), trunkM); br.position.set(sx * 0.28 * s, 1.25 * s, 0); br.rotation.z = -sx * 0.6; g.add(br); }
-    puff(0.6, -0.6, 1.75, 0, 0.85); puff(0.62, 0.62, 1.8, 0.05, 0.85); puff(0.7, 0, 2.25, -0.05, 0.9);
-  } else if (kind === 3) {
-    trunk(1.0, 0.13, 0.2); const c = puff(0.85, 0, 1.55, 0, 0.92);
-    const apple = std(0xff4a4a, 0.4);
-    for (let i = 0; i < 9; i++) { const a = rr(0, 6.28), e = rr(-0.5, 0.75), R = 0.84 * s; const ap = new THREE.Mesh(new THREE.SphereGeometry(0.085 * s, 10, 8), apple); ap.position.set(Math.cos(a) * Math.cos(e) * R, 1.55 * s + Math.sin(e) * R * 0.92, Math.sin(a) * Math.cos(e) * R); g.add(ap); }
-    void c;
-  } else if (kind === 4) {
-    const t = trunk(1.5, 0.09, 0.13);
-    const mark = std(0x3a332c, 0.8); for (let i = 0; i < 5; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.1 * s, 0.03 * s, 0.02 * s), mark); const a = rr(0, 6.28); m.position.set(Math.cos(a) * 0.105 * s, rr(0.25, 1.35) * s, Math.sin(a) * 0.105 * s); m.rotation.y = -a; g.add(m); }
-    void t; puff(0.6, 0, 1.75, 0, 1.15); puff(0.42, 0.35, 2.3, 0.05);
-  } else {
+  const trunk = (h, r0 = 0.12, r1 = 0.18) => {
+    const prof = [[r1 * 1.7, 0], [r1 * 1.15, 0.06], [r1, 0.16], [(r0 + r1) / 2, h * 0.55], [r0, h], [0, h]].map(([r, y0]) => new THREE.Vector2(r * s, y0 * s));
+    const t0 = new THREE.Mesh(new THREE.LatheGeometry(prof, 12), trunkM); g.add(t0); return t0;
+  };
+  const branch = (x0, y0, x1, y1, z1, r) => { const a = new THREE.Vector3(x0 * s, y0 * s, 0), b = new THREE.Vector3(x1 * s, y1 * s, z1 * s), d = b.clone().sub(a);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.7 * s, r * s, d.length(), 8), trunkM); m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); g.add(m); };
+  // clumps [[x, y, z, r]] (in units of s) → one shaded mesh
+  const crown = cl => {
+    let y0 = Infinity, y1 = -Infinity; for (const [, cy, , r] of cl) { y0 = Math.min(y0, cy - r); y1 = Math.max(y1, cy + r); }
+    const pos = [], nor = [], col = [], c = new THREE.Color();
+    for (const [cx, cy, cz, r] of cl) {
+      const geo = blob(r * s, 0.11).toNonIndexed(), p = geo.getAttribute('position'), n = geo.getAttribute('normal'), tint = rr(-0.06, 0.06);
+      for (let i = 0; i < p.count; i++) {
+        const wx = p.getX(i) + cx * s, wy = p.getY(i) + cy * s, wz = p.getZ(i) + cz * s, k = clamp((wy / s - y0) / (y1 - y0), 0, 1);
+        c.copy(k < 0.45 ? dark.clone().lerp(base, k / 0.45) : base.clone().lerp(light, (k - 0.45) / 0.55));
+        const up = Math.max(0, n.getY(i)); c.lerp(light, up * 0.25); c.offsetHSL(tint * 0.1, 0, tint);   // tops of clumps catch the sun
+        pos.push(wx, wy, wz); nor.push(n.getX(i), n.getY(i), n.getZ(i)); col.push(c.r, c.g, c.b);
+      }
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    const m = new THREE.Mesh(geo, leaf); g.add(m); return m;
+  };
+  const ring = (n, cy, R, r, dy = 0.1, ph = rr(0, 6)) => Array.from({ length: n }, (_, i) => { const a = ph + i / n * Math.PI * 2; return [Math.cos(a) * R, cy + (i % 2 ? dy : -dy), Math.sin(a) * R, r * rr(0.85, 1.1)]; });
+  let clumps = null;
+  if (kind === 0 || kind === 3) {                      // the round tree / the apple tree: a dome of clumps on a forked trunk
+    trunk(1.1, 0.12, 0.19); branch(0, 0.95, -0.32, 1.35, 0.05, 0.08); branch(0, 1.0, 0.3, 1.4, -0.05, 0.07);
+    clumps = [[0, 1.6, 0, 0.6], ...ring(6, 1.45, 0.55, 0.42), ...ring(4, 1.95, 0.3, 0.36), [0, 2.2, 0, 0.3]];
+    crown(clumps);
+    if (kind === 3) {                                  // apples hang on the outside of the clumps, with a stem and a leaf
+      const apple = std(0xff3b3b, 0.35), stem = std(0x5a3418, 0.8), lf = std(0x5cc44a, 0.6);
+      for (let i = 0; i < 10; i++) {
+        const [cx, cy, cz, r] = clumps[1 + ((rnd() * 10) | 0)], a = rr(0, 6.28), e = rr(-0.6, 0.5), d = new THREE.Vector3(Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e));
+        const ap = new THREE.Group(); ap.position.set((cx + d.x * r * 0.98) * s, (cy + d.y * r * 0.98) * s, (cz + d.z * r * 0.98) * s);
+        const b0 = new THREE.Mesh(new THREE.SphereGeometry(0.09 * s, 14, 10), apple); b0.scale.set(1, 0.9, 1); ap.add(b0);
+        const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008 * s, 0.01 * s, 0.06 * s, 5), stem); st.position.y = 0.09 * s; ap.add(st);
+        const l2 = new THREE.Mesh(new THREE.SphereGeometry(0.035 * s, 8, 6), lf); l2.scale.set(1.6, 0.4, 0.8); l2.position.set(0.035 * s, 0.11 * s, 0); l2.rotation.z = 0.5; ap.add(l2);
+        g.add(ap);
+      }
+    }
+  } else if (kind === 1) {                             // a tall poplar: clumps stacked into a slim flame
+    trunk(1.0, 0.1, 0.15);
+    clumps = []; for (let i = 0; i < 6; i++) { const y0 = 1.15 + i * 0.32, w = 0.42 * Math.sin(Math.PI * (i + 0.8) / 7.2) + 0.12; clumps.push([rr(-0.06, 0.06), y0, rr(-0.06, 0.06), w], ...ring(3, y0 + 0.08, w * 0.55, w * 0.6, 0.05)); }
+    crown(clumps);
+  } else if (kind === 2) {                             // a cloud tree: three clumpy puffs on a forked trunk
+    trunk(1.1); branch(0, 1.0, -0.6, 1.62, 0, 0.08); branch(0, 1.0, 0.62, 1.66, 0.05, 0.08);
+    const puffC = (x0, y0, z0, r) => [[x0, y0, z0, r * 0.75], ...ring(5, y0 - 0.05, r * 0.55, r * 0.5, 0.06).map(([a, b, c2, d]) => [a + x0, b, c2 + z0, d]), [x0, y0 + r * 0.45, z0, r * 0.45]];
+    crown([...puffC(-0.6, 1.8, 0, 0.62), ...puffC(0.62, 1.85, 0.05, 0.64), ...puffC(0, 2.3, -0.05, 0.7)]);
+  } else if (kind === 4) {                             // a birch: white trunk with dark marks, light clumps scattered up it
+    trunk(1.6, 0.08, 0.13);
+    const mark = std(0x3a332c, 0.8); for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.1 * s, 0.03 * s, 0.02 * s), mark); const a = rr(0, 6.28); m.position.set(Math.cos(a) * 0.1 * s, rr(0.25, 1.4) * s, Math.sin(a) * 0.1 * s); m.rotation.y = -a; g.add(m); }
+    crown([[0, 1.85, 0, 0.42], ...ring(5, 1.7, 0.38, 0.32, 0.12), ...ring(3, 2.2, 0.22, 0.3), [0, 2.45, 0, 0.24]]);
+  } else {                                             // a green pine: drooping tiers
     trunk(0.6, 0.12, 0.16);
-    [[0.8, 0.9], [0.62, 1.45], [0.42, 1.95]].forEach(([r, y0]) => { const cone = new THREE.Mesh(colorByY(new THREE.ConeGeometry(r * s, 0.95 * s, 24), -0.48 * s, 0.48 * s, [[0, dark], [0.5, base], [1, light]]), leaf); cone.position.y = y0 * s; g.add(cone); });
+    [[0.85, 0.85], [0.7, 1.3], [0.54, 1.72], [0.38, 2.1], [0.22, 2.42]].forEach(([r, y0]) => {
+      const cone = new THREE.ConeGeometry(r * s, 0.7 * s, 28, 1), cp = cone.getAttribute('position'), ph = rr(0, 6);
+      for (let i = 0; i < cp.count; i++) if (cp.getY(i) < 0) { const a = Math.atan2(cp.getZ(i), cp.getX(i)); cp.setY(i, cp.getY(i) - 0.06 * s * (0.5 + 0.5 * Math.sin(a * 9 + ph))); }
+      cone.computeVertexNormals();
+      const m = new THREE.Mesh(colorByY(cone, -0.4 * s, 0.35 * s, [[0, dark], [0.5, base], [1, light]]), leaf); m.position.y = y0 * s; g.add(m);
+    });
   }
   parent.add(shade(g));
   return g;
