@@ -156,8 +156,11 @@ function drawSlots() {
   }).join('');
   $('slots').classList.toggle('done', G.got.length === words.length);
 }
+// the coin pill shows the whole purse — the wallet plus this run's coins — so it never drops back to 0 when the next
+// level starts (user 2026-11-24: "레벨이 넘어가면 동전모은게 초기화 되는 버그"); after bank() the run's coins are in the wallet
+const purse = () => (save.wallet || 0) + (G.banked ? 0 : G.coins);
 function drawCoins(bump, minus) {
-  $('coins').textContent = G.coins;
+  $('coins').textContent = purse();
   const c = $('coins').parentElement;
   if (bump || minus) { c.classList.remove('bump', 'minus'); void c.offsetWidth; c.classList.add(minus ? 'minus' : 'bump'); }
 }
@@ -192,7 +195,7 @@ function resetRun() {
   Object.assign(P, { x: L.start.x, y: L.start.y, z: L.start.z, vx: 0, vy: 0, vz: 0, yaw: Math.PI, grounded: true, ground: L.plats[0], coyote: 0, buffer: 0, inv: 0, lock: 0, hurt: 0 });
   const d0 = parseFloat(qs.get('d'));                         // ?d=60: start 60 along the course (tests)
   if (G.screen === 'play' && isFinite(d0) && !G.usedX) { G.usedX = true; P.z = -d0; P.y = 12; P.grounded = false; }
-  Object.assign(G, { cheerT: 0, ent: null, lastInput: 0, lastHelp: -99, helping: false, hearts: HEARTS, coins: 0, got: [], said: [], lost: 0, wrong: 0, falls: 0, t: 0, phase: 'play', phaseT: 0,
+  Object.assign(G, { cheerT: 0, ent: null, lastInput: 0, lastHelp: -99, helping: false, hearts: HEARTS, coins: 0, banked: false, got: [], said: [], lost: 0, wrong: 0, falls: 0, t: 0, phase: 'play', phaseT: 0,
     safe: { x: P.x, y: P.y, z: P.z }, camY: P.y, lockedAt: -9, firstGood: true, jumpTold: false, ready: false });
   cam.snap = true;
   runner.root.position.set(P.x, P.y, P.z); runner.root.scale.setScalar(1); runner.yaw = 0.3; runner.flash = 0;
@@ -231,6 +234,7 @@ function startLevel(idx) {
   go();
 }
 function toTitle() {
+  if (G.screen === 'play' && G.coins > 0) bank();               // leaving mid-level keeps the coins picked up so far
   stopDemo(); G.sayTok++;
   A.stopVoice(); A.setListening(false);
   for (const k of Object.keys(keys)) press(k, false);
@@ -309,7 +313,7 @@ function gameOver() {
   setTimeout(() => { if (G.screen === 'play') { setScreen('over'); A.say('t:over'); } }, 700);
   record(false);
 }
-function bank() { save.wallet = (save.wallet || 0) + G.coins; writeSave(); }
+function bank() { if (G.banked || G.auto) return; save.wallet = (save.wallet || 0) + G.coins; G.banked = true; writeSave(); }
 function record(won) {
   try {
     window.PhonicsProgress?.played(GAME_ID, {
@@ -327,7 +331,7 @@ function levelClear() {
   bank(); record(true);
   $('stars').innerHTML = [0, 1, 2].map(i => STAR_SVG(i < stars)).join('');
   $('gotList').innerHTML = G.got.map(w => `<img class="${G.said.includes(w) ? 'said' : ''}" src="assets/words/${w}.png" alt="${w}">`).join('');
-  $('coinsEnd').textContent = G.coins;
+  $('coinsEnd').textContent = '+' + G.coins;                     // what this level earned (the purse is in the HUD)
   $('cNext').hidden = G.idx >= LEVELS.length - 1;
   const g = G.lv.gate;
   Object.assign(P, { x: g.x + g.nx * 2.2, y: g.top, z: g.z + g.nz * 2.2, vx: 0, vy: 0, vz: 0, grounded: true });
@@ -851,6 +855,7 @@ window.PR = {
   teleport(d, y, x = 0) { P.x = x; P.y = y; P.z = -d; P.vx = 0; P.vy = 0; P.vz = 0; P.grounded = false; G.camY = y; cam.snap = true; },
   move: (x, z) => { joy.on = x !== 0 || z !== 0; joy.x = x; joy.z = z; drawJoy(); },
   give(n) { save.wallet = (save.wallet || 0) + n; writeSave(); drawLevels(); },
+  clear: () => levelClear(), exit: () => toTitle(),   // tests
   env: E, tata: runner, get P() { return P; }, get lv() { return G.lv; }, get G() { return G; },   // tests
   sayCard: w => { app.classList.add('saying'); showSayCard(w, 0); const r = $('sayWord').getBoundingClientRect(); return { h: r.height, w: r.width, card: $('sayWord').parentElement.clientWidth, font: getComputedStyle($('sayWord')).fontSize }; },
   unlockAll() { for (const L of LEVELS) save.stars[L.id] = save.stars[L.id] || 1; drawLevels(); },   // tests
