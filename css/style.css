@@ -608,3 +608,44 @@ button { font: inherit; border: 0; padding: 0; background: none; cursor: pointer
 .pop.minus, .pop.plus { display: flex; align-items: center; gap: calc(.8 * var(--u)); }
 .pop-coin { display: block; width: calc(6.4 * var(--u)); height: calc(6.4 * var(--u)); background: var(--ic-coin) center / contain no-repeat;
   filter: drop-shadow(0 calc(.4 * var(--u)) 0 rgba(42,15,106,.55)); }
+
+/* ================================================================ phones held sideways (2026-11-26, "모바일 용을 고친다고 태블릿이나
+   pc버전이 깨지면 안돼"): only a short screen with a finger pointer gets these rules — tablets (≥ 768 tall) and PCs (mouse)
+   never match, so they stay exactly as above. On a phone the 16:9 unit is ~3.4 px and the top bar came out 26 px:
+   the bar, the system buttons, SKIP and the say turn's buttons are drawn on a bigger unit of their own (same parts, same
+   proportions, just bigger), the touch controls get thumb sizes, and the edge things keep clear of the notch. */
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  /* top bar: 44 px buttons and plates, 8 px from the top, 10 px (+ the notch) from the sides */
+  .hud, .sys { --u: 5.8px; --hb: calc(7.6 * var(--u)); }
+  .hud { left: calc(10px + env(safe-area-inset-left)); right: calc(10px + env(safe-area-inset-right)); top: 8px; }
+  .sys { right: calc(10px + env(safe-area-inset-right)); top: 8px; }
+  .sys-left { right: auto; left: calc(10px + env(safe-area-inset-left)); }
+  .skip { --hb: 44px; }
+  /* touch controls: the stick 100 px, ← → 56 px, jump 60 px (each a unit of its own, so the insides keep their shares) */
+  .joy { --u: 4.17px; left: calc(2.6 * var(--u) + env(safe-area-inset-left)); }
+  .pad { --u: 4.3px; left: calc(2.4 * var(--u) + env(safe-area-inset-left)); }
+  .jbtn { --u: 3.75px; right: calc(2.4 * var(--u) + env(safe-area-inset-right)); }
+  /* the say turn: listen / JUMP 44 px, the mic 57 px; the card starts under the bigger top bar */
+  .say-row { --u: 4.6px; }
+  .say-card { top: 56px; }
+  /* title: START 60 px high; the view toggle's buttons 60 × 40, level with START at the right end */
+  .s-title { padding-bottom: 14px; }
+  #btnStart, .view-tog { --u: 4.6px; }
+  .s-title .view-tog { right: calc(10px + env(safe-area-inset-right)); bottom: calc(14px + (13 * 4.6px - 10.2 * var(--u)) / 2); }
+  /* dress room: ✕ 46 px under the sound button (as on the big screens), the card under it; "360°" 13 px */
+  .dress { top: 76px; left: calc(5 * var(--u) + env(safe-area-inset-left)); right: calc(5 * var(--u) + env(safe-area-inset-right)); }
+  .d-close { top: 56px; right: calc(10px + env(safe-area-inset-right)); width: 46px; height: 46px; }
+  .d-head { padding-right: 36px; }   /* the coins clear of the ✕ */
+  .d-rot { --u: 4.2px; }
+}
+
+/* phones held upright: a full-screen card asks to turn the phone (the game is made for the wide screen) */
+.rotate-hint { display: none; }
+@media (orientation: portrait) and (max-width: 500px) and (pointer: coarse) {
+  .rotate-hint { position: fixed; inset: 0; z-index: 2147483647; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    padding: 24px; color: #fff; background: rgba(42, 15, 106, .92); text-align: center; touch-action: none; }
+  .rotate-hint svg { width: 132px; height: 132px; overflow: visible; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .25)); }
+  .rotate-hint .rh-dev { transform-box: view-box; transform-origin: 50% 50%; animation: rhTurn 2s ease-in-out infinite; }
+  .rotate-hint p { margin: 0; font: 800 22px / 1.2 var(--font); letter-spacing: .02em; }
+}
+@keyframes rhTurn { 0%, 15% { transform: rotate(0); } 55%, 85% { transform: rotate(90deg); } 100% { transform: rotate(0); } }
