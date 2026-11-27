@@ -9,6 +9,12 @@
   const Mic = { state: 'off', stream: null, node: null, sr: 48000 };   // off | asking | on | denied | none
   const FRAME_S = 0.02, PRE_S = 0.7, RING_S = 1.2;
   let ring = [], listeners = new Set(), floor = 0.004;
+  // the tutor's own voice is never the child's word (user 2026-11-27 "아이캐치 … 인식이 잘 안되는거 같아서"): with the speaker
+  // near the mic, the lead-in of a retry held the end of "다시 말해 볼까?" — the server heard it before the word and the
+  // judge failed every right answer (official words: alone 6/6, after the tutor's tail 0/6). Frames heard while the
+  // tutor talks, and 0.3 s after (speaker latency, room echo), are masked: left out of the lead-in and of the listen.
+  const TALK_TAIL = 15;
+  let talkTail = 0;
   const WORKLET = `class EcCap extends AudioWorkletProcessor {
     constructor(o) { super(); this.n = o.processorOptions.frame; this.b = new Float32Array(this.n); this.i = 0; }
     process(inputs) { const c = inputs[0] && inputs[0][0];
@@ -38,10 +44,13 @@
         const f = e.data;
         let s = 0; for (let k = 0; k < f.length; k++) s += f[k] * f[k];
         const rms = Math.sqrt(s / f.length);
-        ring.push({ f, rms });
+        const talk = !!(window.Sound && Sound.talking);
+        if (talk) talkTail = TALK_TAIL; else if (talkTail > 0) talkTail--;
+        const masked = talk || talkTail > 0;
+        ring.push({ f, rms, masked });
         if (ring.length > RING_S / FRAME_S) ring.shift();
         if (!Sound.talking && rms < Math.max(0.01, floor * 3.2)) floor = rms < floor ? floor * 0.8 + rms * 0.2 : floor * 0.995 + rms * 0.005;
-        listeners.forEach(fn => fn(f, rms));
+        listeners.forEach(fn => fn(f, rms, masked));
       };
       Mic.stream = stream; Mic.node = node; Mic.state = 'on';
       stream.getAudioTracks().forEach(t => t.addEventListener('ended', () => { Mic.state = 'none'; }));
@@ -61,7 +70,9 @@
     if (Mic.state !== 'on') return Promise.resolve({ kind: 'nomic' });
     const waitMs = o.waitMs ?? 4500, maxMs = o.maxMs ?? 3500, endMs = o.endMs ?? 800;   // a child's "mush… room" pause fits
     return new Promise(resolve => {
-      const frames = ring.slice(-Math.round(PRE_S / FRAME_S));    // the lead-in
+      let frames = ring.slice(-Math.round(PRE_S / FRAME_S));      // the lead-in — only what came after the tutor's voice
+      const lastMasked = frames.map(x => x.masked).lastIndexOf(true);
+      if (lastMasked >= 0) frames = frames.slice(lastMasked + 1);
       let start = -1, last = -1, run = 0, voiced = 0, done = false, n = 0;
       const live0 = frames.length;
       const thr = () => Math.max(0.012, floor * 3.2);
@@ -80,8 +91,9 @@
         for (let i = a; i < b; i++) pcm.set(frames[i].f, (i - a) * F);
         return { kind: 'speech', pcm, sr: Mic.sr, voicedMs: voiced * 20 };
       };
-      const fn = (f, rms) => {
+      const fn = (f, rms, masked) => {
         if (done) return;
+        if (masked) { n++; if (start < 0 && n * 20 >= waitMs) finish({ kind: 'silence' }); return; }   // the tutor talking: not the child
         frames.push({ f, rms }); n++;
         const i = frames.length - 1;
         judge(i);
