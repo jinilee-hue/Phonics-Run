@@ -31,30 +31,36 @@ const damp = (k, dt) => 1 - Math.exp(-k * dt);
 // Lit parts are untouched. (window.__tataShade: tests tune it live)
 const SHADE = { pow: { value: 1.5 }, val: { value: 0.85 }, amt: { value: 0.6 } };   // the light one of three tried (user: "약하게가 나은거 같아")
 window.__tataShade = SHADE;
-function warmShadow(m) {
+// floor > 0: the surface never goes darker than floor × its deep colour — the shoes (user 2026-11-27 "신발도 같은 형태야 민트 컬러
+// 어두운것도 민트 계열의 어두운게 투명도로 들어가야지 검은색 투명으로 넣지마"): under the shoe the light falls to ~0, so even the
+// tinted mix stayed near black there; with the floor the darkest a shoe gets is a deep mint
+function warmShadow(m, floor = 0) {
+  const uFloor = { value: floor };
+  m.userData.shadeFloor = uFloor;
   m.onBeforeCompile = (sh) => {
-    sh.uniforms.uPow = SHADE.pow; sh.uniforms.uVal = SHADE.val; sh.uniforms.uAmt = SHADE.amt;
-    sh.fragmentShader = 'uniform float uPow;\nuniform float uVal;\nuniform float uAmt;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `
+    sh.uniforms.uPow = SHADE.pow; sh.uniforms.uVal = SHADE.val; sh.uniforms.uAmt = SHADE.amt; sh.uniforms.uFloor = uFloor;
+    sh.fragmentShader = 'uniform float uPow;\nuniform float uVal;\nuniform float uAmt;\nuniform float uFloor;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `
       {
         vec3 base = diffuseColor.rgb;
         float lb = max(dot(base, vec3(0.2126, 0.7152, 0.0722)), 1e-4), lo = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722));
         float dark = 1.0 - smoothstep(0.3, 1.0, lo / lb);                       // 1 deep in the shadow, 0 where it is lit
         vec3 deep = pow(max(base, vec3(0.0)), vec3(uPow)) * uVal;                 // its own colour, richer and darker
         outgoingLight = mix(outgoingLight, deep, dark * uAmt);
+        outgoingLight = max(outgoingLight, deep * uFloor);                          // (the shoes: deep mint at the darkest)
       }
       #include <opaque_fragment>`);
   };
   m.customProgramCacheKey = () => 'tata-deep-shadow';
   return m;
 }
-function clay(color, rough = 0.62, sheen = 0.1, spec = 0.35) {
+function clay(color, rough = 0.62, sheen = 0.1, spec = 0.35, floor = 0) {
   // low specular + light sheen: the sky-blue world light and the env reflections otherwise wash the clay out
   const c = new THREE.Color(color);
   return warmShadow(new THREE.MeshPhysicalMaterial({
     // no sheen: its pale fuzz on every edge read as a haze over Tata in the pink and night light (user: "캐릭터 좀 뿌옇게")
     color: c, roughness: rough, metalness: 0, sheen: 0,
     specularIntensity: spec, envMapIntensity: 0.7,   // (0.45 → 0.7: a softer shadow side, nearer the promo renders)
-  }));
+  }), floor);
 }
 function ellipsoid(rx, ry, rz, mat, seg = 40) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(1, seg, Math.round(seg * 0.75)), mat);
@@ -188,9 +194,9 @@ export class Tata {
     this.model = new THREE.Group();
     this.root.add(this.model);
 
-    const orange = clay(K.orange), navy = clay(K.navy, 0.9, 0.04, 0.12), cream = clay(K.cream, 0.6, 0.06), teal = clay(K.teal, 0.55, 0.06),
+    const orange = clay(K.orange), navy = clay(K.navy, 0.9, 0.04, 0.12), cream = clay(K.cream, 0.6, 0.06), teal = clay(K.teal, 0.55, 0.06, 0.35, 1.5),
       blue = new THREE.MeshPhysicalMaterial({ color: K.blue, roughness: 0.38, clearcoat: 0.55, clearcoatRoughness: 0.25, sheen: 0.2, sheenColor: new THREE.Color(0x8fa6ff) }), brow = clay(K.brow, 0.6, 0.2);
-    const tealV = clay(0xffffff, 0.55, 0.06); tealV.vertexColors = true;
+    const tealV = clay(0xffffff, 0.55, 0.06, 0.35, 1.5); tealV.vertexColors = true;   // (floor: never darker than a deep mint)
     this.mats = { orange, navy, cream, teal: tealV, blue };
 
     // ---- pelvis (hip centre at the shirt hem) + legs + shoes
@@ -203,7 +209,7 @@ export class Tata {
       const ankle = new THREE.Group(); ankle.position.y = -0.2; hip.add(ankle);
       // big teal shoe: an ellipsoid with a flattened sole, longer to the front
       const sg = new THREE.SphereGeometry(1, 72, 36), sp = sg.getAttribute('position'), col = new Float32Array(sp.count * 3), cc = new THREE.Color();
-      const cTop = new THREE.Color(0x1bb8bd), cMid = new THREE.Color(K.teal), cLow = new THREE.Color(0x03595d);
+      const cTop = new THREE.Color(0x1bb8bd), cMid = new THREE.Color(K.teal), cLow = new THREE.Color(0x067a7e);   // (low end a deeper mint, was near-black 0x03595d)
       for (let i = 0; i < sp.count; i++) {
         let x = sp.getX(i), y = sp.getY(i), z = sp.getZ(i);
         const yy = y;
@@ -599,11 +605,11 @@ export class Tata {
       for (const A of this.arms) { A.sh.rotation.x = -2.8 + 0.15 * c; A.sh.rotation.z = A.s * (0.5 + 0.12 * c); A.elbow.rotation.x = -0.2; }
       this.model.position.y = Math.max(0, Math.sin(this.cheer * 6)) * 0.5;
     } else { this.cheer = 0; this.model.position.y = 0; }
-    // front flip after a double jump: 0.42 s, eased, about the middle of the body (y ≈ 0.95), the model only (root keeps
+    // front flip after a double jump: 0.55 s (it rises higher now, so the turn takes a little longer), eased, about the middle of the body (y ≈ 0.95), the model only (root keeps
     // its yaw); stops at once if she lands or the mode changes
     if (this.flipT !== undefined && this.flipT >= 0) {
       this.flipT += dt;
-      const u = clamp(this.flipT / 0.42, 0, 1), a = (u < 1 && !st.grounded && st.mode !== 'hurt') ? Math.PI * 2 * (u * u * (3 - 2 * u)) : 0, c = 0.95;
+      const u = clamp(this.flipT / 0.55, 0, 1), a = (u < 1 && !st.grounded && st.mode !== 'hurt') ? Math.PI * 2 * (u * u * (3 - 2 * u)) : 0, c = 0.95;
       this.model.rotation.x = a; this.model.position.y += c - c * Math.cos(a); this.model.position.z = -c * Math.sin(a);
       if (a === 0) { this.flipT = -1; this.model.position.z = 0; }
     }

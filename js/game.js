@@ -25,7 +25,8 @@ const pick = a => a[(Math.random() * a.length) | 0];
 // ---------------------------------------------------------------- tuning
 const PH = {
   run: 6.6, accG: 40, accA: 26, decG: 36, decA: 8,
-  jumpV: 15.2, jump2V: 13.2, gUp: 34, gCut: 85, gDown: 46, maxFall: 24, bounceV: 21,
+  jumpV: 15.2, jump2V: 17.5,   // the double jump goes HIGHER than the first (user 2026-11-27 "2단 뛰기하면 더 높게 뛰면서 도는게")
+  gUp: 34, gCut: 85, gDown: 46, maxFall: 24, bounceV: 21,
   coyote: 0.12, buffer: 0.15, hw: 0.42, h: 1.95,
 };
 const PATH_HALF = W.PATH_W / 2;
@@ -367,7 +368,7 @@ function physics(dt, control) {
     runner.jumped(); A.sfx.jump();
     E.puff(P.x, P.y + 0.05, P.z + 0.3, 0, 0.4, 0.5);
   } else if (control && P.buffer > 0 && !P.grounded && !P.air2 && P.lock <= 0) {
-    // a double jump (user 2026-11-26 "이단뛰기도 넣어줄수 있어?"): one more press in the air — a little lower than the first,
+    // a double jump (user 2026-11-26 "이단뛰기도 넣어줄수 있어?"): one more press in the air — higher than the first (17.5 vs 15.2),
     // a front flip, a higher "hop" and a ring of sparkles under her feet. Landing gives it back (and so does a bouncer).
     P.vy = PH.jump2V; P.air2 = true; P.buffer = 0; P.boost = false;
     runner.doubleJumped(); A.sfx.jump2();
