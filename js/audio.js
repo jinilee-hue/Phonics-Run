@@ -169,6 +169,7 @@ function noise(dur, peak, f0, f1, delay = 0, q = 0.8) {
 }
 export const sfx = {
   jump() { tone('square', 330, 760, 0.16, 0.09); tone('triangle', 330, 760, 0.16, 0.2); },
+  jump2() { tone('square', 520, 1180, 0.14, 0.08); tone('triangle', 520, 1180, 0.14, 0.18); tone('triangle', 1568, 1568, 0.12, 0.1, 0.06); },   // the double jump: higher, with a ting
   coin() { tone('square', 988, 988, 0.07, 0.07); tone('triangle', 988, 988, 0.07, 0.18); tone('triangle', 1319, 1319, 0.22, 0.2, 0.065); },
   good() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone('triangle', f, f, 0.22, 0.22, i * 0.06)); noise(0.35, 0.05, 6000, 9000, 0.05, 2); },
   bad() { tone('sawtooth', 260, 150, 0.32, 0.12); tone('square', 196, 110, 0.32, 0.06, 0.02); },

@@ -441,6 +441,8 @@ export class Tata {
   }
 
   jumped() { this.takeoff = 0.14; this.jumpSide = -this.jumpSide; this.tuftV -= 6; }
+  /** the second jump: a quick front flip (update spins the model round her middle) */
+  doubleJumped() { this.flipT = 0; this.takeoff = 0.14; this.tuftV -= 9; }
   landed(v, x, y) {
     this.land = 0.2 * clamp(v / 14, 0.45, 1);
     this.tuftV += clamp(v, 0, 20) * 0.9;
@@ -569,6 +571,14 @@ export class Tata {
       for (const A of this.arms) { A.sh.rotation.x = -2.8 + 0.15 * c; A.sh.rotation.z = A.s * (0.5 + 0.12 * c); A.elbow.rotation.x = -0.2; }
       this.model.position.y = Math.max(0, Math.sin(this.cheer * 6)) * 0.5;
     } else { this.cheer = 0; this.model.position.y = 0; }
+    // front flip after a double jump: 0.42 s, eased, about the middle of the body (y ≈ 0.95), the model only (root keeps
+    // its yaw); stops at once if she lands or the mode changes
+    if (this.flipT !== undefined && this.flipT >= 0) {
+      this.flipT += dt;
+      const u = clamp(this.flipT / 0.42, 0, 1), a = (u < 1 && !st.grounded && st.mode !== 'hurt') ? Math.PI * 2 * (u * u * (3 - 2 * u)) : 0, c = 0.95;
+      this.model.rotation.x = a; this.model.position.y += c - c * Math.cos(a); this.model.position.z = -c * Math.sin(a);
+      if (a === 0) { this.flipT = -1; this.model.position.z = 0; }
+    }
 
     // blink + mouth (open smile; a small 'o' when hurt)
     this.blinkIn -= dt;

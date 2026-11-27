@@ -25,7 +25,7 @@ const pick = a => a[(Math.random() * a.length) | 0];
 // ---------------------------------------------------------------- tuning
 const PH = {
   run: 6.6, accG: 40, accA: 26, decG: 36, decA: 8,
-  jumpV: 15.2, gUp: 34, gCut: 85, gDown: 46, maxFall: 24, bounceV: 21,
+  jumpV: 15.2, jump2V: 13.2, gUp: 34, gCut: 85, gDown: 46, maxFall: 24, bounceV: 21,
   coyote: 0.12, buffer: 0.15, hw: 0.42, h: 1.95,
 };
 const PATH_HALF = W.PATH_W / 2;
@@ -39,7 +39,7 @@ const HEARTS = 3, TRAP_COST = 2, SAY_REWARD = 3;
 
 // ---------------------------------------------------------------- state
 const runner = new Tata(E.scene, { puff: E.puff });
-const P = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, yaw: Math.PI, grounded: true, ground: null, coyote: 0, buffer: 0, inv: 0, lock: 0, hurt: 0 };
+const P = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, yaw: Math.PI, grounded: true, ground: null, coyote: 0, buffer: 0, inv: 0, lock: 0, hurt: 0, air2: false };
 const G = {
   screen: 'title', idx: 0, lv: null, t: 0, hearts: HEARTS, coins: 0, got: [], said: [], lost: 0, wrong: 0, falls: 0,
   phase: 'play',            // play | dead | say | enter | done
@@ -196,7 +196,7 @@ function load(idx) {
 }
 function resetRun() {
   const L = G.lv;
-  Object.assign(P, { x: L.start.x, y: L.start.y, z: L.start.z, vx: 0, vy: 0, vz: 0, yaw: Math.PI, grounded: true, ground: L.plats[0], coyote: 0, buffer: 0, inv: 0, lock: 0, hurt: 0 });
+  Object.assign(P, { x: L.start.x, y: L.start.y, z: L.start.z, vx: 0, vy: 0, vz: 0, yaw: Math.PI, grounded: true, ground: L.plats[0], coyote: 0, buffer: 0, inv: 0, lock: 0, hurt: 0, air2: false });
   const d0 = parseFloat(qs.get('d'));                         // ?d=60: start 60 along the course (tests)
   if (G.screen === 'play' && isFinite(d0) && !G.usedX) { G.usedX = true; P.z = -d0; P.y = 12; P.grounded = false; }
   Object.assign(G, { cheerT: 0, ent: null, lastInput: 0, lastHelp: -99, helping: false, hearts: HEARTS, coins: 0, banked: false, got: [], said: [], lost: 0, wrong: 0, falls: 0, t: 0, phase: 'play', phaseT: 0,
@@ -366,6 +366,13 @@ function physics(dt, control) {
     P.vy = PH.jumpV; P.grounded = false; P.ground = null; P.coyote = 0; P.buffer = 0;
     runner.jumped(); A.sfx.jump();
     E.puff(P.x, P.y + 0.05, P.z + 0.3, 0, 0.4, 0.5);
+  } else if (control && P.buffer > 0 && !P.grounded && !P.air2 && P.lock <= 0) {
+    // a double jump (user 2026-11-26 "이단뛰기도 넣어줄수 있어?"): one more press in the air — a little lower than the first,
+    // a front flip, a higher "hop" and a ring of sparkles under her feet. Landing gives it back (and so does a bouncer).
+    P.vy = PH.jump2V; P.air2 = true; P.buffer = 0; P.boost = false;
+    runner.doubleJumped(); A.sfx.jump2();
+    E.burst(new THREE.Vector3(P.x, P.y + 0.15, P.z), 0xfff3a0, 0.45);
+    E.puff(P.x, P.y + 0.05, P.z + 0.2, 0, -0.3, 0.45);
   }
   if (P.vy <= 0) P.boost = false;
   const g = (P.vy > 0 ? ((K.jump && control) || P.boost ? PH.gUp : PH.gCut) : PH.gDown) * grav;
@@ -392,11 +399,11 @@ function physics(dt, control) {
     }
   }
   if (land && land.bounce) {                                    // mushroom / jelly drum: boing — up high
-    ny = land.top; P.vy = PH.bounceV; P.boost = true; P.grounded = false; P.ground = null; P.coyote = 0;
+    ny = land.top; P.vy = PH.bounceV; P.boost = true; P.grounded = false; P.ground = null; P.coyote = 0; P.air2 = false;
     land.bounce.t = 0; runner.jumped(); A.sfx.boing();
     E.puff(P.x, ny + 0.1, P.z, 0, 1.2, 0.7);
   } else if (land) {
-    ny = land.top; P.vy = 0; P.grounded = true; P.ground = land;
+    ny = land.top; P.vy = 0; P.grounded = true; P.ground = land; P.air2 = false;
     if (!wasGrounded) { runner.landed(impact, P.x, ny); if (impact > 6) A.sfx.land(); }
   } else { P.grounded = false; P.ground = null; }
   P.y = ny;
@@ -856,7 +863,7 @@ if (qs.has('play')) startLevel(G.idx);
 const fontsReady = Promise.race([document.fonts?.load('800 100px "Baloo 2"').then(() => undefined) ?? Promise.resolve(), new Promise(r => setTimeout(r, 2500))]);
 window.PR = {
   step: dt => tick(dt), press, start: i => startLevel(i ?? G.idx), toTitle, skip: () => endDemo(),
-  teleport(d, y, x = 0) { P.x = x; P.y = y; P.z = -d; P.vx = 0; P.vy = 0; P.vz = 0; P.grounded = false; G.camY = y; cam.snap = true; },
+  teleport(d, y, x = 0) { P.x = x; P.y = y; P.z = -d; P.vx = 0; P.vy = 0; P.vz = 0; P.grounded = false; P.air2 = false; G.camY = y; cam.snap = true; },
   move: (x, z) => { joy.on = x !== 0 || z !== 0; joy.x = x; joy.z = z; drawJoy(); },
   give(n) { save.wallet = (save.wallet || 0) + n; writeSave(); drawLevels(); },
   clear: () => levelClear(), exit: () => toTitle(),   // tests
