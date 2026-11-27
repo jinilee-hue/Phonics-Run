@@ -29,6 +29,9 @@ const damp = (k, dt) => 1 - Math.exp(-k * dt);
 // × VAL keeps the strong channel and drops the weak ones (orange #ff8a2c → a deep red-orange ≈ #e7520a, navy → deep navy,
 // teal → deep teal, cream → warm beige), mixed in by how much the surface falls below its lit colour (AMT at the darkest).
 // Lit parts are untouched. (window.__tataShade: tests tune it live)
+// mouth preview variants (2026-11-27, "타타 입속 시안"): ?mouth=a (now) | b (lip rims + deep inner shadow) | c (b + tongue
+// groove, gloss, set back) | d (c + upper teeth). The user picked c ("c로 해줘"); the others stay for comparing.
+const MOUTH_V = (() => { try { return new URLSearchParams(location.search).get('mouth') || 'c'; } catch (e) { return 'c'; } })();
 const SHADE = { pow: { value: 1.5 }, val: { value: 0.85 }, amt: { value: 0.6 } };   // the light one of three tried (user: "약하게가 나은거 같아")
 window.__tataShade = SHADE;
 // floor > 0: the surface never goes darker than floor × its deep colour — the shoes (user 2026-11-27 "신발도 같은 형태야 민트 컬러
@@ -403,7 +406,8 @@ export class Tata {
     const tongueM = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.2, emissive: 0xff7a88, emissiveIntensity: 0.16 });
     this.mouthOpen = new THREE.Group(); this.mouthO = new THREE.Group(); this.head.add(this.mouthOpen, this.mouthO);
     const inside = headDecal(ms, mouthM, 0.003);
-    colorByHeight(inside.geometry, top0 - mh, top0, [[0, 0xa83442], [0.5, 0x7c1c26], [0.85, 0x4e0f18], [1, 0x3a0a12]]);   // deep shadow under the upper lip
+    if (MOUTH_V === 'a') colorByHeight(inside.geometry, top0 - mh, top0, [[0, 0xa83442], [0.5, 0x7c1c26], [0.85, 0x4e0f18], [1, 0x3a0a12]]);   // deep shadow under the upper lip
+    else colorByHeight(inside.geometry, top0 - mh, top0, [[0, 0xc2404c], [0.4, 0x9a2836], [0.72, 0x641424], [0.88, 0x34080f], [1, 0x220508]]);   // b+: a deeper throat under the upper lip
     this.mouthOpen.add(inside);
     // tongue: an arc on top, the mouth's own bottom (inset) below — it never pokes out of the mouth
     const tw = 0.112, tTop = top0 - 0.098, tR = 0.07, ts = new THREE.Shape();
@@ -417,10 +421,31 @@ export class Tata {
     const tongue = headDome(ts, tongueM, 0.006, 0.022, 0, (tTop + lowY(0)) / 2, tw, 0.055);
     colorByHeight(tongue.geometry, top0 - mh, tTop, [[0, 0xf06a7a], [1, 0xffa3ad]]);
     this.mouthOpen.add(tongue);
+    if (MOUTH_V !== 'a') {                                            // b+: an upper lip rim like the lower one
+      const up = [];
+      for (let i = 0; i <= 16; i++) { const th = Math.PI * (0.06 + 0.88 * i / 16), x = (mw / 2) * Math.cos(th), sn = Math.sin(th); up.push([x, top0 + 0.016 * Math.pow(sn, 0.6) - 0.026 * sn * sn + 0.004]); }
+      this.mouthOpen.add(headTube(up, 0.0075, orange, 0.002, 0.75));
+    }
+    if (MOUTH_V === 'c' || MOUTH_V === 'd') {                         // c+: a groove down the tongue and a soft gloss on it
+      // (the groove lighter and shorter than the first try, which read like a cut)
+      const gM = new THREE.MeshBasicMaterial({ color: 0xe06a80, transparent: true, opacity: 0.32, depthWrite: false });
+      const gs = new THREE.Shape(); gs.absellipse(0, (tTop + lowY(0)) / 2 + 0.008, 0.0045, 0.021, 0, Math.PI * 2);
+      const groove = headDecal(gs, gM, 0.03, 16); groove.renderOrder = 3; this.mouthOpen.add(groove);
+      const hM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.38, depthWrite: false });
+      const hs = new THREE.Shape(); hs.absellipse(-0.045, tTop - 0.018, 0.026, 0.011, 0, Math.PI * 2);
+      const hl = headDecal(hs, hM, 0.03, 16); hl.renderOrder = 3; this.mouthOpen.add(hl);
+    }
+    if (MOUTH_V === 'd') {                                            // d: a row of upper teeth under the lip
+      const tM = clay(K.white, 0.4, 0.05, 0.5), tsh = new THREE.Shape(), TW = 0.105;
+      for (let i = 0; i <= 24; i++) { const x = -TW + 2 * TW * i / 24, sn = Math.sqrt(Math.max(0, 1 - (x / (mw / 2)) ** 2)); const y = top0 + 0.016 * Math.pow(sn, 0.6) - 0.026 * sn * sn - 0.004; i ? tsh.lineTo(x, y) : tsh.moveTo(x, y); }
+      for (let i = 24; i >= 0; i--) { const x = -TW + 2 * TW * i / 24, sn = Math.sqrt(Math.max(0, 1 - (x / (mw / 2)) ** 2)); tsh.lineTo(x, top0 + 0.016 * Math.pow(sn, 0.6) - 0.026 * sn * sn - 0.034 + 0.008 * (x / TW) ** 2); }
+      tsh.closePath();
+      this.mouthOpen.add(headDome(tsh, tM, 0.004, 0.008, 0, top0 - 0.02, TW, 0.02));
+    }
     // the lower lip: a soft orange roll along the bottom of the mouth, lit on top and shaded under, so the mouth has an edge
     const lip = [];
     for (let i = 0; i <= 14; i++) { const x = (-0.5 + i / 14) * mw * 0.9; lip.push([x, lowY(x) - 0.007]); }
-    this.mouthOpen.add(headTube(lip, 0.011, orange, 0.002, 0.7));
+    this.mouthOpen.add(headTube(lip, MOUTH_V === 'c' || MOUTH_V === 'd' ? 0.014 : 0.011, orange, 0.002, 0.7));
     // 'o' (hurt)
     const os = new THREE.Shape(); os.absellipse(0, top0 - 0.075, 0.062, 0.078, 0, Math.PI * 2);
     const oIn = headDecal(os, mouthM, 0.003); colorByHeight(oIn.geometry, top0 - 0.153, top0 + 0.003, [[0, 0x9c2833], [1, 0x521018]]); this.mouthO.add(oIn);
