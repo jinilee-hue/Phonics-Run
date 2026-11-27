@@ -245,22 +245,24 @@ export class Tata {
     shirt.scale.z = SZ; this.torso.add(shirt);
     const hem = new THREE.Mesh(new THREE.TorusGeometry(0.413, 0.034, 12, 64), cream);
     hem.rotation.x = Math.PI / 2; hem.scale.set(1, SZ * 1.005, 1); hem.position.y = 0.012; this.torso.add(hem);
-    const band = new THREE.Mesh(new THREE.TorusGeometry(0.255, 0.05, 14, 56), cream);
+    // (user 2026-11-27 "목 카라가 별도로 옷이랑 끊어져서 보이는데"): the band a little fuller and the wings tucked up under it,
+    // thinner and closer to the shirt, in the band's own material (a clone had lost the shadow-colour shader) — one collar
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.255, 0.058, 14, 56), cream);
     band.rotation.x = Math.PI / 2 - 0.05; band.scale.set(1, 0.86, 1); band.position.set(0, 0.51, 0.0); this.torso.add(band);
     // collar wings: rounded triangles hanging off the band on each side of the V, wrapped onto the shirt
     // (shape x = arc length round the shirt from the front centre, y = height on the torso)
     const wing = new THREE.Shape();
-    wing.moveTo(0.035, 0.548); wing.lineTo(0.33, 0.505); wing.quadraticCurveTo(0.375, 0.5, 0.35, 0.465);
-    wing.lineTo(0.215, 0.37); wing.quadraticCurveTo(0.19, 0.352, 0.168, 0.375); wing.lineTo(0.03, 0.51); wing.quadraticCurveTo(0.018, 0.53, 0.035, 0.548);
-    const wingSrc = new TessellateModifier(0.02, 8).modify(new THREE.ExtrudeGeometry(wing, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 2, curveSegments: 8 }));
-    const wingMat = cream.clone(); wingMat.side = THREE.DoubleSide;
+    wing.moveTo(0.035, 0.566); wing.lineTo(0.33, 0.528); wing.quadraticCurveTo(0.375, 0.52, 0.35, 0.465);
+    wing.lineTo(0.215, 0.37); wing.quadraticCurveTo(0.19, 0.352, 0.168, 0.375); wing.lineTo(0.03, 0.51); wing.quadraticCurveTo(0.018, 0.545, 0.035, 0.566);
+    const wingSrc = new TessellateModifier(0.02, 8).modify(new THREE.ExtrudeGeometry(wing, { depth: 0.012, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.007, bevelSegments: 2, curveSegments: 8 }));
+    const wingMat = clay(K.cream, 0.6, 0.06); wingMat.side = THREE.DoubleSide;
     for (const s of [-1, 1]) {
       const g = wingSrc.clone(), p = g.getAttribute('position');
       for (let i = 0; i < p.count; i++) {
         const ax = p.getX(i), y = p.getY(i), d = p.getZ(i);
         const r = shirtR(y), phi = s * ax / Math.max(r, 0.05), slope = (shirtR(y - 0.01) - shirtR(y + 0.01)) / 0.02;
         const n = new THREE.Vector3(Math.sin(phi), slope, Math.cos(phi) / SZ).normalize();
-        p.setXYZ(i, Math.sin(phi) * r + n.x * (0.006 + d), y + n.y * (0.006 + d), Math.cos(phi) * r * SZ + n.z * (0.006 + d));
+        p.setXYZ(i, Math.sin(phi) * r + n.x * (0.004 + d), y + n.y * (0.004 + d), Math.cos(phi) * r * SZ + n.z * (0.004 + d));
       }
       g.computeVertexNormals();
       this.torso.add(new THREE.Mesh(g, wingMat));
@@ -364,16 +366,17 @@ export class Tata {
       e.add(lash, ...ends);
       this.head.add(e); this.eyes.push(e);
     }
-    // blush: soft pink on the cheeks, under and outside the eyes
+    // blush: a warm rose on the cheeks, under and outside the eyes (user 2026-11-27 "볼터치도 촌스럽지 않게 좀더 잘 보이는 채도로"):
+    // the old cool pink at 50 % vanished into the orange; a coral-rose, stronger in the middle, still fading softly to nothing
     const blushTex = (() => {
       const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
-      const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,120,160,.5)'); gr.addColorStop(0.55, 'rgba(255,130,165,.24)'); gr.addColorStop(1, 'rgba(255,140,170,0)');
+      const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,62,98,.86)'); gr.addColorStop(0.45, 'rgba(255,74,106,.6)'); gr.addColorStop(0.78, 'rgba(255,92,120,.22)'); gr.addColorStop(1, 'rgba(255,104,128,0)');   // ("더 진하게 줘")
       g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
     })();
     const blushM = new THREE.MeshBasicMaterial({ map: blushTex, transparent: true, depthWrite: false });
     for (const s of [-1, 1]) {
-      const cx = s * 0.33, cy = -0.1, r = 0.1, sh = new THREE.Shape(); sh.absellipse(cx, cy, r * 1.15, r, 0, Math.PI * 2);
+      const cx = s * 0.33, cy = -0.1, r = 0.108, sh = new THREE.Shape(); sh.absellipse(cx, cy, r * 1.15, r, 0, Math.PI * 2);
       const m = headDecal(sh, blushM, 0.004, 32), uv = m.geometry.getAttribute('uv'), pp = m.geometry.getAttribute('position');
       for (let i = 0; i < pp.count; i++) uv.setXY(i, (pp.getX(i) - cx) / (2.3 * r) + 0.5, (pp.getY(i) - cy) / (2 * r) + 0.5);
       m.renderOrder = 2; this.head.add(m);
