@@ -10,8 +10,11 @@ import { TessellateModifier } from 'three/addons/modifiers/TessellateModifier.js
 import { SDF, mesh as sdfMesh } from './sdf.js';
 import { ITEMS, buildItem, HIDES_TUFT } from './outfits.js';
 
+// orange / navy lifted to read like the promo renders (user 2026-11-27 "run 캐릭터가 너무 어두워보여" … "Poly-Phonics-Promo의
+// 타타와 너무 비교되는데"): the promo Tata's face is #f2731a–#fb811d, its vest #252d4f; on screen the old 0xf8620a came out
+// #ee5e1c red-orange and the vest near black (#00062a). Measured in the snow / candy light: now #ef7c27 and #0b1a44–#20244f
 export const TATA_COLORS = {
-  orange: 0xf8620a, navy: 0x161c40, cream: 0xf5e5d4, teal: 0x05868b, blue: 0x1c46d8, brow: 0x7a3812,
+  orange: 0xff8a2c, navy: 0x454b6c, cream: 0xf5e5d4, teal: 0x05868b, blue: 0x1c46d8, brow: 0x7a3812,
   pupil: 0x2a0e07, mouth: 0x8c2331, tongue: 0xef7e88, white: 0xfffaf2,
 };
 const K = TATA_COLORS;
@@ -25,7 +28,7 @@ function clay(color, rough = 0.62, sheen = 0.1, spec = 0.35) {
   return new THREE.MeshPhysicalMaterial({
     // no sheen: its pale fuzz on every edge read as a haze over Tata in the pink and night light (user: "캐릭터 좀 뿌옇게")
     color: c, roughness: rough, metalness: 0, sheen: 0,
-    specularIntensity: spec, envMapIntensity: 0.45,
+    specularIntensity: spec, envMapIntensity: 0.7,   // (0.45 → 0.7: a softer shadow side, nearer the promo renders)
   });
 }
 function ellipsoid(rx, ry, rz, mat, seg = 40) {
