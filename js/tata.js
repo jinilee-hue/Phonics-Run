@@ -22,14 +22,39 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const damp = (k, dt) => 1 - Math.exp(-k * dt);
 
+// the shadow side is a darker orange, not orange under grey (user 2026-11-27 "타타 캐릭터 좀더 어두운 부분을 채도를 밝게" →
+// "어두운 주황색이 채도가 낮아서 검은색으로 투명도 덮힌 느낌 … 같은 주황색 계열의 어두운 컬러가 투명도로 들어가게"): plain
+// light falloff scales the colour toward black, which reads as a muddy brown. Every clay surface of Tata now lays its OWN
+// deep colour over the dark half, like a translucent paint layer: the same hue made richer and darker — pow(colour, POW)
+// × VAL keeps the strong channel and drops the weak ones (orange #ff8a2c → a deep red-orange ≈ #e7520a, navy → deep navy,
+// teal → deep teal, cream → warm beige), mixed in by how much the surface falls below its lit colour (AMT at the darkest).
+// Lit parts are untouched. (window.__tataShade: tests tune it live)
+const SHADE = { pow: { value: 1.5 }, val: { value: 0.85 }, amt: { value: 0.6 } };   // the light one of three tried (user: "약하게가 나은거 같아")
+window.__tataShade = SHADE;
+function warmShadow(m) {
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uPow = SHADE.pow; sh.uniforms.uVal = SHADE.val; sh.uniforms.uAmt = SHADE.amt;
+    sh.fragmentShader = 'uniform float uPow;\nuniform float uVal;\nuniform float uAmt;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `
+      {
+        vec3 base = diffuseColor.rgb;
+        float lb = max(dot(base, vec3(0.2126, 0.7152, 0.0722)), 1e-4), lo = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722));
+        float dark = 1.0 - smoothstep(0.3, 1.0, lo / lb);                       // 1 deep in the shadow, 0 where it is lit
+        vec3 deep = pow(max(base, vec3(0.0)), vec3(uPow)) * uVal;                 // its own colour, richer and darker
+        outgoingLight = mix(outgoingLight, deep, dark * uAmt);
+      }
+      #include <opaque_fragment>`);
+  };
+  m.customProgramCacheKey = () => 'tata-deep-shadow';
+  return m;
+}
 function clay(color, rough = 0.62, sheen = 0.1, spec = 0.35) {
   // low specular + light sheen: the sky-blue world light and the env reflections otherwise wash the clay out
   const c = new THREE.Color(color);
-  return new THREE.MeshPhysicalMaterial({
+  return warmShadow(new THREE.MeshPhysicalMaterial({
     // no sheen: its pale fuzz on every edge read as a haze over Tata in the pink and night light (user: "캐릭터 좀 뿌옇게")
     color: c, roughness: rough, metalness: 0, sheen: 0,
     specularIntensity: spec, envMapIntensity: 0.7,   // (0.45 → 0.7: a softer shadow side, nearer the promo renders)
-  });
+  }));
 }
 function ellipsoid(rx, ry, rz, mat, seg = 40) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(1, seg, Math.round(seg * 0.75)), mat);
